@@ -205,10 +205,10 @@ decoders = {
 }
 
 
-def read_iq(filename):
+def read_iq(filename, postprocess=True):
     data = np.memmap(filename)
     raw_arrays = list(extract_raw_arrays(data, get_geometry(data)))
-    return xr.Dataset(
+    ds = xr.Dataset(
         {
             k: v
             for _, tag, array in raw_arrays
@@ -216,6 +216,22 @@ def read_iq(filename):
             for k, v in decoders[tag](array).items()
         }
     )
+    if postprocess:
+        ds = ds.pipe(postprocess_iq)
+    return ds
+
+
+def decode_time(ds):
+    time = (
+        np.datetime64("1970-01-01")
+        + ds.Tm * np.timedelta64(1000000000, "ns")
+        + ds.time_milli * np.timedelta64(1000, "ns")
+    )
+    return ds.drop_vars(["Tm", "time_milli"]).assign(time=time)
+
+
+def postprocess_iq(ds):
+    return ds.pipe(decode_time)
 
 
 def main():
@@ -225,7 +241,7 @@ def main():
     parser.add_argument("filename")
     args = parser.parse_args()
 
-    print(read_iq(args.filename))
+    print(read_iq(args.filename).pipe(decode_time))
 
 
 if __name__ == "__main__":
