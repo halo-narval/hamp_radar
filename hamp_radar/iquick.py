@@ -133,7 +133,7 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
 
 def decode_srvi(rawdata):
     print("SRVI shape:", rawdata.shape)
-    res = {
+    return {
         "frm": (
             ("frame",),
             rawdata[:, 0:4].view("<u4")[:, 0],
@@ -162,19 +162,14 @@ def decode_srvi(rawdata):
         "dwGRST": (("frame",), rawdata[:, 44:48].view("<u4")[:, 0]),
         "AzmPos": (("frame",), rawdata[:, 48:52].view("<f4")[:, 0]),
         "AzmVel": (("frame",), rawdata[:, 52:56].view("<f4")[:, 0]),
-        "ElvPos": (("frame",), rawdata[:, 60:64].view("<f4")[:, 0]),
-        "ElvVel": (("frame",), rawdata[:, 64:68].view("<f4")[:, 0]),
-        "NorthAngle": (("frame",), rawdata[:, 68:72].view("<f4")[:, 0]),
-        "time_milli": (("frame",), rawdata[:, 72:76].view("<u4")[:, 0]),
-        "PD_DataQuality": (("frame",), rawdata[:, 76:80].view("<u4")[:, 0]),
-        "LO_Frequency": (("frame",), rawdata[:, 80:84].view("<f4")[:, 0]),
+        "ElvPos": (("frame",), rawdata[:, 56:60].view("<f4")[:, 0]),
+        "ElvVel": (("frame",), rawdata[:, 60:64].view("<f4")[:, 0]),
+        "NorthAngle": (("frame",), rawdata[:, 64:68].view("<f4")[:, 0]),
+        "time_milli": (("frame",), rawdata[:, 68:72].view("<u4")[:, 0]),
+        "PD_DataQuality": (("frame",), rawdata[:, 72:76].view("<u4")[:, 0]),
+        "LO_Frequency": (("frame",), rawdata[:, 76:80].view("<f4")[:, 0]),
+        "DetuneFine": (("frame",), rawdata[:, 80:84].view("<f4")[:, 0]),
     }
-    if rawdata.shape[-1] > 84:
-        res = {
-            **res,
-            "DetuneFine": (("frame",), rawdata[:, 84:88].view("<f4")[:, 0]),
-        }
-    return res
 
 
 def decode_moment(name):
