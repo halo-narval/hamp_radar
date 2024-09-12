@@ -1,10 +1,24 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: check-yaml
+        name: Check YAML file formatting
+    -   id: check-added-large-files
+        name: No large Files
+        description: Checks that you did not unconsciously upload some enormous file
+-   repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.11
     hooks:
-      # Run the linter.
-      - id: ruff
+    -   id: ruff
         args: [ --fix ]
-      # Run the formatter.
-      - id: ruff-format
+        description: python linter
+    -   id: ruff-format
+        description: python formatter
+-   repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.4.0
+    hooks:
+    -   id: conventional-pre-commit
+        stages: [commit-msg]
