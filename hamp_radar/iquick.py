@@ -277,8 +277,8 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
                 block.tag,
                 as_strided(
                     data[mmbg.offset + block.offset :],
-                    (mmbg.count, block.size),
-                    (mmbg.step if mmbg.count > 1 else 1, 1),
+                    shape=(mmbg.count, block.size),
+                    strides=(mmbg.step if mmbg.count > 1 else 1, 1),
                     subok=True,
                     writeable=False,
                 ),
