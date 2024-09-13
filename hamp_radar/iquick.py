@@ -352,7 +352,7 @@ decoders = {
     """
     Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
     section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
-    specific to the HAMP radar currently in operation on HALO.
+    specific to the Ka radar currently in operation on HALO.
     (last checked: 13th Septermber 2024).
     """
     b"SRVI": decode_srvi,
@@ -364,9 +364,11 @@ decoders = {
 }
 
 
-def read_iq(filename, postprocess=True):
+def read_pds(filename, postprocess=True):
     """
-    Converts IQ data from a file called 'filename', into an xarray Dataset.
+    Converts data from a file called 'filename', into an xarray Dataset. Currently
+    only functioning with geometry of pds files and decoders for IQ data of
+    Ka radar currently operational on HALO (last checked: 13th Septermber 2024).
 
     Optimisation uses NumPy library memory-mapped array to avoid reading
     entirety of large binary file into main memory from disc when only (small)
@@ -590,7 +592,7 @@ def main():
     parser.add_argument("filename")
     args = parser.parse_args()
 
-    print(read_iq(args.filename).pipe(decode_time))
+    print(read_pds(args.filename).pipe(decode_time))
 
 
 if __name__ == "__main__":
