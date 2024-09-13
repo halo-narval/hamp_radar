@@ -382,7 +382,7 @@ def read_pds(filename, postprocess=True):
     xarray.Dataset: The IQ data dataset.
     """
     data = np.memmap(filename, mode='r')
-    raw_arrays = list(extract_raw_arrays(data, get_geometry(data)))
+    raw_arrays = extract_raw_arrays(data, get_geometry(data))
     # TODO(ALL) add failure if same decoder key repeats (temporary) 
     ds = xr.Dataset(
         {
