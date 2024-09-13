@@ -156,7 +156,7 @@ def get_geometry(data):
     ValueError: If the main tag cannot be found in the data, indicating that the data may not be a PDS file.
     """
     o = 0
-    main_tag, main_size = get_tag_size(data)
+    main_tag, main_size = get_tag_size(data[:8])
 
     if (
         len(data) < main_size + 8
