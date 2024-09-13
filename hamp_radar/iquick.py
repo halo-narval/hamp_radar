@@ -176,7 +176,7 @@ def get_geometry(data):
             )
             o += 8 + size
 
-    return list(compact_geometry(main_blocks(data, o)))
+    return compact_geometry(main_blocks(data, o))
 
 
 def compact_geometry(
