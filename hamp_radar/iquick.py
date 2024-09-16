@@ -132,7 +132,6 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
 
 
 def decode_srvi(rawdata):
-    print("SRVI shape:", rawdata.shape)
     return {
         "frm": (
             ("frame",),
