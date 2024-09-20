@@ -373,15 +373,14 @@ def single_dspparams_data(data):
     The first value in the returned list of raw arrays is the DSP parameters 
     configuration (tag == "PPAR").
     
+    Raises warning if no PPiAR tags are found in the data.
+
     Parameters:
     data (any): The input data (memory map or open file) from which to extract the
                 arrays associated with a single DSP parameter configuration.
 
     Returns:
     list: A list of raw arrays extracted from the data.
-    
-    Raises:
-    ValueError: If no PPAR tags are found in the data.
     '''
 
     mmbgs = get_geometry(data)
@@ -397,7 +396,8 @@ def single_dspparams_data(data):
                 break
 
     if start is None:
-        raise ValueError("No PPar tags found, data isn't associated with any DSP configuration")
+        start = 0
+        print("Warning: No PPar tags found, using data from entire file which isn't associated with any DSP configuration")
 
     single_dspparams_mmbgs = mmbgs[start:end]
 
