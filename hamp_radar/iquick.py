@@ -232,58 +232,15 @@ def decode_time(ds):
 def postprocess_iq(ds):
     return ds.pipe(decode_time)
 
-def get_pdsinfo(pds_fname,blocks_of_output=0):
 
-    """
-    parses pds files and reports on structure. it is
-    hopefully a rather simple minded implementation
-    that helps make the geometry of the input files
-    clear.
-
-    pds_fname: the path to a pds file to parse
-    blocks_of_output: number of blocks with verbose output
-    """
-    import datetime
-    import struct
-    import sys
-    import os
-
-    svri_format = '<2I5f5I5f2I2f'
-    iblk = 0
-    ipos = 0
-    f = open(pds_fname, "rb")
-
-    while ipos < os.stat(pds_fname).st_size-8:
-        f.seek(ipos)
-        header, block_size = struct.unpack("<4si",f.read(8))
-        if (header == b'SRVI'):
-            f.seek(ipos+8)
-            svri     = struct.unpack(svri_format,f.read(struct.calcsize(svri_format)))
-            t = datetime.datetime(1970,1,1)+datetime.timedelta(seconds=svri[1])+datetime.timedelta(microseconds=svri[17])
-            if ( iblk < blocks_of_output):
-                print (f'Frame number {svri[0]}, at {t} and {svri[6]}')
-            if iblk == 0 :
-                frm0 = svri[0]
-                t0   = datetime.datetime(1970,1,1)+datetime.timedelta(seconds=svri[1])+datetime.timedelta(microseconds=svri[17])
-            iblk +=1
-        if header == b'HAXC' :
-            ipos += 8
-        else:
-            ipos += block_size + 8
-
-    if (svri[0]-frm0 != iblk-1): sys.exit('error, frames do not increment montonically')
-
-    return t0,t,frm0,svri[0],iblk
-
-
-def untangle_iqf(files,
-                zarr_path,
-                c_light = 299792458.,
-                ref_air=1.0003,
-                pulse_length = 208e-9,
-                d_gate1 = 150.
-                ):
-
+def untangle_iqf(
+    files,
+    zarr_path,
+    c_light=299792458.0,
+    ref_air=1.0003,
+    pulse_length=208e-9,
+    d_gate1=150.0,
+):
     """
     Takes a list of pds files and returns zarr files
     separating (untangling) frame data from pulse (cocx) data.
@@ -294,98 +251,104 @@ def untangle_iqf(files,
     determining the range information passed as a coordinate to
     the pulse dataset
     """
-    import sys
     import xarray as xr
     import numpy as np
     import pandas as pd
 
     first = read_iq(files[0])
-    last  = read_iq(files[-1])
-    tbeg  = first.time[0]
-    fbeg  = first.frm[0]
-    nfrms = last.frm[-1]-fbeg+1
-    nfft  = last.sizes['fft']
-    ngate = last.sizes['range']
+    last = read_iq(files[-1])
+    tbeg = first.time[0]
+    fbeg = first.frm[0]
+    nfrms = last.frm[-1] - fbeg + 1
+    nfft = last.sizes["fft"]
+    ngate = last.sizes["range"]
 
-    tau_frame = (last.time[-1] - tbeg)/nfrms
-    tau_pulse = tau_frame/nfft
-    dtfft     = tau_pulse * xr.DataArray(np.arange(nfft), dims=("fft",))
-    len_gate  = c_light/ref_air * pulse_length / 2.
+    tau_frame = (last.time[-1] - tbeg) / nfrms
+    tau_pulse = tau_frame / nfft
+    dtfft = tau_pulse * xr.DataArray(np.arange(nfft), dims=("fft",))
+    len_gate = c_light / ref_air * pulse_length / 2.0
 
     for file in files:
         radar = read_iq(file)
-        print (f"First frame {radar.frm[0].values} of file {file}")
-        if (np.all(np.diff(radar.time)>0)) :
-            time_frame = tbeg + tau_frame*(radar.frm-fbeg)
-            ds1 = (radar[["TPow","NPw","CPw"]]
-                   .assign_coords(frame=radar.frm,frame_time=radar.time)
-                   )
-            fout  = f'{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-frms.zarr'
+        print(f"First frame {radar.frm[0].values} of file {file}")
+        if np.all(np.diff(radar.time) > 0):
+            time_frame = tbeg + tau_frame * (radar.frm - fbeg)
+
+            ds1 = xr.Dataset(
+                {
+                    "TPow": radar["TPow"],
+                    "co_NPw": radar["NPw"].isel(cocx=0),
+                    "cx_NPw": radar["NPw"].isel(cocx=1),
+                    "co_CPw": radar["CPw"].isel(cocx=0),
+                    "cx_CPw": radar["CPw"].isel(cocx=1),
+                }
+            ).assign_coords(
+                frame=(
+                    "frame",
+                    time_frame.data,
+                    {"long_name": "radar timestamp for frame"},
+                )
+            )
+            ds1["TPow"].attrs["long_name"] = "transmit power"
+            ds1["co_NPw"].attrs["long_name"] = "co-channel power from noise source"
+            ds1["cx_NPw"].attrs["long_name"] = "cross channel power from noise source"
+            ds1["co_CPw"].attrs[
+                "long_name"
+            ] = "co-channel power from calibraiton source"
+            ds1["cx_CPw"].attrs[
+                "long_name"
+            ] = "cross channel power from calibration source"
+
+            fout = f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-frms.zarr"
             ds1.to_zarr(fout)
 
-            ds2 = (xr.Dataset({
-                "co": radar['FFTD'].isel(cocx=0),
-                "cx": radar['FFTD'].isel(cocx=1),
-            })
-            .assign_coords(pulse_time=lambda ds2: time_frame + dtfft)
-            .stack(pulse_time=["frame", "fft"], create_index=False)
-            .transpose("iq","range","pulse_time")
-            .assign_coords(range=("range",np.arange(ngate)*len_gate+d_gate1))
-            .assign_coords(iq=("iq",["i","q"]))
+            ds2 = (
+                xr.Dataset(
+                    {
+                        "co": radar["FFTD"].isel(cocx=0),
+                        "cx": radar["FFTD"].isel(cocx=1),
+                    }
+                )
+                .assign_coords(pulse_time=time_frame + dtfft)
+                .stack(pulse_time=["frame", "fft"], create_index=False)
+                .transpose("iq", "range", "pulse_time")
+                .assign_coords(
+                    range=(
+                        "range",
+                        np.arange(ngate) * len_gate + d_gate1,
+                        {"long_name": "distance from aircraft", "units": "m"},
+                    )
+                )
+                .assign_coords(
+                    iq=(
+                        "iq",
+                        ["i", "q"],
+                        {"long_name": "signal phase (inphase or quadrature)"},
+                    )
+                )
             )
-            ds2["range"].attrs["long_name"] = "distance from aircraft"
-            ds2["range"].attrs["units"] = "m"
-            ds2["iq"].attrs["long_name"] = "signal phase (inphase or quadrature)"
-            fout  = f'{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-cocx.zarr'
+            ds2["pulse_time"].attrs[
+                "long_name"
+            ] = "estimated time of pulse from calculated prf"
+            ds2["co"].attrs["long_name"] = "iq data from co-polarazied receiver"
+            ds2["cx"].attrs["long_name"] = "iq data from cross-polarazied receiver"
+
+            fout = f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-cocx.zarr"
             ds2.to_zarr(fout)
         else:
-            sys.exit('error frames do not increment monotonically')
-    return ds_cocx,ds_frms
+            raise ValueError("frames do not increment monotonically")
+    return
 
 
-def merge_iqf(cocx_files,frms_files):
-
+def merge_iqf(cocx_files, frms_files):
     """
-    Takes a list of pulse data (cocx_files) and rame data (frame_files)
-    merges them into a single data set including additional metadata, which
-    the function returns, ideally to be written to a zarr dataset.
-
-    cocx_files: list of zarr files with pulse data
-    frms_files: list of zarr files with frame data
-
-    ex.,
-    zarr_path = './radar_zarr_files'
-    files = [pds_path + x for x in sorted(os.listdir(path))]
-    untangle_iqf(files,zarr_path)
-
-    cocx_files = sorted(glob.glob(zarr_path + '*cocx.zarr'))
-    frms_files = sorted(glob.glob(zarr_path + '*frms.zarr'))
-    ds = merge_radar_zarr(cocx_files,frms_files)
-    ds.to_zarr(fout)
+    Merges pulse data (cocx_files) and frame data (frame_files) as zarr files into a single zarr dataset
     """
-    import numpy as np
     import xarray as xr
-    ds_frms = xr.open_mfdataset(frms_files,engine='zarr')
-    dx = (ds_frms
-          .merge(ds_frms.NPw.to_dataset(dim='cocx').rename({0:"co_NPw"}).rename({1:"cx_NPw"}))
-          .merge(ds_frms.CPw.to_dataset(dim='cocx').rename({0:"co_CPw"}).rename({1:"cx_CPw"}))
-          .drop_vars(["NPw","CPw"])
+
+    return xr.open_mfdataset(frms_files, engine="zarr").merge(
+        xr.open_mfdataset(cocx_files, engine="zarr")
     )
-    dx["co_NPw"].attrs['long_name'] = 'co-channel noise power pin-mod in save position'
-    dx["cx_NPw"].attrs['long_name'] = 'cross channel noise power pin-mod in save position'
-    dx["co_CPw"].attrs['long_name'] = 'co-channel noise power int. source'
-    dx["cx_CPw"].attrs['long_name'] = 'cross channel noise power int. source'
-    dx["frame_time"].attrs['long_name'] = "radar timestamp for frame"
-
-    dy= xr.open_mfdataset(cocx_files,engine='zarr')
-    dy["co"].attrs['long_name'] = 'iq data from co-polarazied receiver'
-    dy["cx"].attrs['long_name'] = 'iq data from cross-polarazied receiver'
-    dy["pulse_time"].attrs['long_name'] = 'estimated time of pulse from calculated prf'
-    dy["range"].attrs["long_name"] = "distance from aircraft"
-    dy["range"].attrs["units"] = "m"
-    dy["iq"].attrs["long_name"] = "signal phase (inphase or quadrature)"
-
-    return dx.merge(dy)
 
 
 def main():
