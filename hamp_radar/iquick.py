@@ -367,14 +367,14 @@ decoders = {
 
 
 def single_dspparams_data(data):
-    ''' 
-    Returns raw arrays of data from the first occurrence of DSP parameters 
+    """
+    Returns raw arrays of data from the first occurrence of DSP parameters
     up to the next occurrence or up to the end of the data.
-    
-    The first value in the returned list of raw arrays is the DSP parameters 
+
+    The first value in the returned list of raw arrays is the DSP parameters
     configuration (tag == "PPAR").
-    
-    Raises warning if no PPiAR tags are found in the data.
+
+    Raises warning if no PPAR tags are found in the data.
 
     Parameters:
     data (any): The input data (memory map or open file) from which to extract the
@@ -382,7 +382,7 @@ def single_dspparams_data(data):
 
     Returns:
     list: A list of raw arrays extracted from the data.
-    '''
+    """
 
     mmbgs = get_geometry(data)
 
@@ -398,11 +398,14 @@ def single_dspparams_data(data):
 
     if start is None:
         start = 0
-        print("Warning: No PPar tags found, using data from entire file which isn't associated with any DSP configuration")
+        print(
+            "Warning: No PPAR tags found, using data from entire file which isn't associated with any DSP configuration"
+        )
 
     single_dspparams_mmbgs = mmbgs[start:end]
 
     return extract_raw_arrays(data, single_dspparams_mmbgs)
+
 
 def read_pds(filename, postprocess=True):
     """
@@ -417,7 +420,7 @@ def read_pds(filename, postprocess=True):
     Returns:
     xarray.Dataset: The IQ data dataset.
     """
-    data = np.memmap(filename, mode='r')
+    data = np.memmap(filename, mode="r")
     raw_arrays = single_dspparams_data(data)
     ds = xr.Dataset(
         {
