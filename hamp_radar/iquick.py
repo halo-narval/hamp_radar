@@ -323,14 +323,16 @@ def untangle_iqf(files,
             fout  = f'{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-frms.zarr'
             ds1.to_zarr(fout)
 
-            ds2 = (radar['FFTD'].to_dataset(dim='cocx')
-                   .assign_coords(pulse_time=lambda ds2: time_frame + dtfft)
-                   .stack(pulse_time=["frame", "fft"], create_index=False)
-                   .transpose("iq","range","pulse_time")
-                   .rename({0:"co"}).rename({1:"cx"})
-                   .assign_coords(range=("range",np.arange(ngate)*len_gate+d_gate1))
-                   .assign_coords(iq=("iq",["i","q"]))
-              )
+            ds2 = (xr.Dataset({
+                "co": radar['FFTD'].isel(cocx=0),
+                "cx": radar['FFTD'].isel(cocx=1),
+            })
+            .assign_coords(pulse_time=lambda ds2: time_frame + dtfft)
+            .stack(pulse_time=["frame", "fft"], create_index=False)
+            .transpose("iq","range","pulse_time")
+            .assign_coords(range=("range",np.arange(ngate)*len_gate+d_gate1))
+            .assign_coords(iq=("iq",["i","q"]))
+            )
             ds2["range"].attrs["long_name"] = "distance from aircraft"
             ds2["range"].attrs["units"] = "m"
             ds2["iq"].attrs["long_name"] = "signal phase (inphase or quadrature)"
