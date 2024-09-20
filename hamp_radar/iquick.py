@@ -20,6 +20,7 @@ class SingleSubBlockGeometry:
         offset (int): Pointer to start of sub-block's data block relative to the enclosing main block.
         size (int): The size of the sub-block's data block (bytes).
     """
+
     tag: str
     offset: int
     size: int
@@ -45,6 +46,7 @@ class SingleMainBlockGeometry:
         subblocks (List[SingleSubBlockGeometry]): A list of sub-blocks within
                                                   the main block.
     """
+
     tag: str
     offset: int
     size: int
@@ -58,7 +60,7 @@ class MultiMainBlockGeometry:
     instances with some overarching metadata. This can be multiple 'main chunks'
     as in Meteorological Ka-Band Cloud Radar MIRA35 Manual, section 2.3.2
     'File structure'.
-    
+
     Allows for 'count' number of SingleMainBlockGeometry instances to be
     combined, assuming they are similar enough (e.g. same subblocks, same offset,
     same tag etc.). (See compact_geometry function.)
@@ -72,6 +74,7 @@ class MultiMainBlockGeometry:
                               instance, required if count > 1.
         subblocks (List[SingleSubBlockGeometry]): The sub-blocks in each main block.
     """
+
     tag: str
     offset: int
     count: int
@@ -187,7 +190,7 @@ def compact_geometry(
     combines sequential ones that are similar enough ('compatible') into a
     single MultiMainBlockGeometry instance. When the previous
     SingleMainBlockGeometry instance is not compatible to the current one, a new
-    MultiMainBlockGeometry instance is started. A list of all the 
+    MultiMainBlockGeometry instance is started. A list of all the
     MultiMainBlockGeometry instances is then returned.
 
     Args:
@@ -344,14 +347,15 @@ def decode_iq(rawdata):
         )
     }
 
-#TODO(ALL): move decoders to seperate file
+
+# TODO(ALL): move decoders to seperate file
+"""
+Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
+section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
+specific to the Ka radar currently in operation on HALO.
+(last checked: 13th Septermber 2024).
+"""
 decoders = {
-    """
-    Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
-    section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
-    specific to the Ka radar currently in operation on HALO.
-    (last checked: 13th Septermber 2024).
-    """
     b"SRVI": decode_srvi,
     b"SNRD": decode_moment("SNRD"),
     b"VELD": decode_moment("VELD"),
@@ -374,9 +378,9 @@ def read_pds(filename, postprocess=True):
     Returns:
     xarray.Dataset: The IQ data dataset.
     """
-    data = np.memmap(filename, mode='r')
+    data = np.memmap(filename, mode="r")
     raw_arrays = extract_raw_arrays(data, get_geometry(data))
-    # TODO(ALL) add failure if same decoder key repeats (temporary) 
+    # TODO(ALL) add failure if same decoder key repeats (temporary)
     ds = xr.Dataset(
         {
             k: v
@@ -405,7 +409,8 @@ def decode_time(ds):
     time = (
         np.datetime64("1970-01-01")
         + ds.Tm * np.timedelta64(1000000000, "ns")
-        + ds.time_milli * np.timedelta64(1000, "ns") # [sic] 'time_milli' is microseconds 
+        + ds.time_milli
+        * np.timedelta64(1000, "ns")  # [sic] 'time_milli' is microseconds
     )
     return ds.drop_vars(["Tm", "time_milli"]).assign(time=time)
 
