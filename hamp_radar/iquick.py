@@ -10,14 +10,14 @@ from numpy.lib.stride_tricks import as_strided
 @dataclass
 class SingleSubBlockGeometry:
     """
-    Representation of a single sub-block, as explained in
+    Representation of a single sub-block geometry, as explained in
     Meteorological Ka-Band Cloud Radar MIRA35 Manual, section 2.3.1
     'Definition of chunk common structure', e.g. for a chunk in an
     Embedded chain type 2 (see section 2.3.3.2).
 
     Attributes:
         tag (str): The tag/signature representing the chunk type.
-        offset (int): Pointer to start of sub-block's data block.
+        offset (int): Pointer to start of sub-block's data block relative to the enclosing main block.
         size (int): The size of the sub-block's data block (bytes).
     """
     tag: str
@@ -28,21 +28,19 @@ class SingleSubBlockGeometry:
 @dataclass
 class SingleMainBlockGeometry:
     """
-    Representation of a single main block as list of
+    Representation of a single main block geometry as list of
     SingleSubBlockGeometry instances with some overarching metadata.
 
     This represents one 'main chunk' as in Meteorological Ka-Band Cloud Radar
     MIRA35 Manual, section 2.3.2 'File structure', and should be chunk as in
-    section 2.3.3 'Main chunk structure', that is either for DSP parameters
-    as in 'Embedded chain type 1; PPar' or for data frame as in
-    'Embedded chain type 2; Data chain'
+    section 2.3.3 'Main chunk structure'.
 
     The sub-blocks of a SingleMainBlockGeometry correspond to each of the blocks
     in the embedded chunk chain which composes the main chunk.
 
     Attributes:
         tag (str): The tag / frame header describing the data in the sub-blocks.
-        offset (int): Pointer to start of the main block's sub-blocks.
+        offset (int): Pointer to start of the main block's sub-blocks, relative to the file.
         size (int): The size of the main block's sub-blocks (bytes).
         subblocks (List[SingleSubBlockGeometry]): A list of sub-blocks within
                                                   the main block.
@@ -267,8 +265,7 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
         tuple: A tuple containing:
             - mmbg.tag: The tag/signature of the main block.
             - block.tag: The tag/signature of the subblock.
-            - ndarray: A view of the data array corresponding to the subblock,
-                       created using numpy's as_strided function.
+            - ndarray: A view of the data array corresponding to the subblock.
     """
     for mmbg in mmbgs:
         for block in mmbg.subblocks:
@@ -370,10 +367,6 @@ def read_pds(filename, postprocess=True):
     only functioning with geometry of pds files and decoders for IQ data of
     Ka radar currently operational on HALO (last checked: 13th Septermber 2024).
 
-    Optimisation uses NumPy library memory-mapped array to avoid reading
-    entirety of large binary file into main memory from disc when only (small)
-    segment is desired.
-
     Parameters:
     filename (str): The path to the file containing the IQ data.
     postprocess (bool): Whether to apply post-processing to the dataset. Default is True.
@@ -400,13 +393,6 @@ def read_pds(filename, postprocess=True):
 def decode_time(ds):
     """
     Replaces 'Tm' and 'time_milli' variables in dataset 'ds' with decoded time.
-
-    The function calculates the time by adding:
-    - A base time of "1970-01-01"
-    - 'Tm' multiplied by 1 second (expressed as 1,000,000,000 ns)
-    - 'time_milli' multiplied by 0.001 (expressed as ns)
-
-    The resulting time is then assigned to a new 'time' variable in the dataset.
 
     Parameters:
     ds (xarray.Dataset): The input dataset containing 'Tm' and 'time_milli'
@@ -582,10 +568,6 @@ def merge_iqf(cocx_files, frms_files):
 
 
 def main():
-    '''
-    Use an argument parser with positional argument for the filename to read IQ
-    data from the file called 'filename' and decode the time.
-    '''
     import argparse
 
     parser = argparse.ArgumentParser()
