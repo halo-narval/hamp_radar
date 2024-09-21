@@ -272,32 +272,33 @@ def untangle_iqf(
         radar = read_iq(file)
         print(f"First frame {radar.frm[0].values} of file {file}")
         if np.all(np.diff(radar.time) > 0):
-            time_frame = tbeg + tau_frame * (radar.frm - fbeg)
+            time_frame = xr.DataArray(
+                tbeg + tau_frame * (radar.frm - fbeg),
+                "frame",
+                {"long_name": "radar timestamp for frame"},
+            )
 
             ds1 = xr.Dataset(
                 {
-                    "TPow": radar["TPow"],
-                    "co_NPw": radar["NPw"].isel(cocx=0),
-                    "cx_NPw": radar["NPw"].isel(cocx=1),
-                    "co_CPw": radar["CPw"].isel(cocx=0),
-                    "cx_CPw": radar["CPw"].isel(cocx=1),
+                    "TPow": radar["TPow"].assign_attrs({"long_name": "transmit power"}),
+                    "co_NPw": radar["NPw"]
+                    .isel(cocx=0)
+                    .assign_attrs({"long_name": "co-channel power from noise source"}),
+                    "cx_NPw": radar["NPw"]
+                    .isel(cocx=1)
+                    .assign_attrs(
+                        {"long_name": "cross-channel power from calibration source"}
+                    ),
+                    "co_CPw": radar["CPw"]
+                    .isel(cocx=0)
+                    .assign_attrs({"long_name": "co-channel power from noise source"}),
+                    "cx_CPw": radar["CPw"]
+                    .isel(cocx=1)
+                    .assign_attrs(
+                        {"long_name": "cross-channel power from calibration source"}
+                    ),
                 }
-            ).assign_coords(
-                frame=(
-                    "frame",
-                    time_frame.data,
-                    {"long_name": "radar timestamp for frame"},
-                )
-            )
-            ds1["TPow"].attrs["long_name"] = "transmit power"
-            ds1["co_NPw"].attrs["long_name"] = "co-channel power from noise source"
-            ds1["cx_NPw"].attrs["long_name"] = "cross channel power from noise source"
-            ds1["co_CPw"].attrs[
-                "long_name"
-            ] = "co-channel power from calibraiton source"
-            ds1["cx_CPw"].attrs[
-                "long_name"
-            ] = "cross channel power from calibration source"
+            ).assign_coords({"frame_time": time_frame})
 
             fout = f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-frms.zarr"
             ds1.to_zarr(fout)
@@ -305,8 +306,16 @@ def untangle_iqf(
             ds2 = (
                 xr.Dataset(
                     {
-                        "co": radar["FFTD"].isel(cocx=0),
-                        "cx": radar["FFTD"].isel(cocx=1),
+                        "co": radar["FFTD"]
+                        .isel(cocx=0)
+                        .assign_attrs(
+                            {"long_name": "iq data from co-polarazied receiver"}
+                        ),
+                        "cx": radar["FFTD"]
+                        .isel(cocx=1)
+                        .assign_attrs(
+                            {"long_name": "iq data from cross-polarazied receiver"}
+                        ),
                     }
                 )
                 .assign_coords(pulse_time=time_frame + dtfft)
@@ -330,8 +339,6 @@ def untangle_iqf(
             ds2["pulse_time"].attrs[
                 "long_name"
             ] = "estimated time of pulse from calculated prf"
-            ds2["co"].attrs["long_name"] = "iq data from co-polarazied receiver"
-            ds2["cx"].attrs["long_name"] = "iq data from cross-polarazied receiver"
 
             fout = f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-cocx.zarr"
             ds2.to_zarr(fout)
