@@ -273,7 +273,8 @@ def untangle_iqf(
             raise ValueError("range dimension cannot change among files")
         time_frame = tbeg + tau_frame * (radar.frm - fbeg)
         print(f"First frame {radar.frm[0].values} of file {file}")
-        if np.all(np.diff(radar.time) > 0):
+        if not np.all(np.diff(radar.time) > 0):
+            raise ValueError("frames do not increment monotonically")
             ds1 = (
                 xr.Dataset(
                     {
