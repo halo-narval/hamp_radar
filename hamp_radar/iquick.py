@@ -176,7 +176,7 @@ def get_geometry(data):
             )
             o += 8 + size
 
-    return list(compact_geometry(main_blocks(data, o)))
+    return compact_geometry(main_blocks(data, o))
 
 
 def compact_geometry(
@@ -365,6 +365,47 @@ decoders = {
 }
 
 
+def single_dspparams_data(data):
+    """
+    Returns raw arrays of data from the first occurrence of DSP parameters
+    up to the next occurrence or up to the end of the data.
+
+    The first value in the returned list of raw arrays is the DSP parameters
+    configuration (tag == "PPAR").
+
+    Raises warning if no PPAR tags are found in the data.
+
+    Parameters:
+    data (any): The input data (memory map or open file) from which to extract the
+                arrays associated with a single DSP parameter configuration.
+
+    Returns:
+    list: A list of raw arrays extracted from the data.
+    """
+
+    mmbgs = get_geometry(data)
+
+    start = None
+    end = -1
+    for i, mmbg in enumerate(mmbgs):
+        if mmbg.tag == "PPAR":
+            if start is None:
+                start = i
+            else:
+                end = i
+                break
+
+    if start is None:
+        start = 0
+        print(
+            "Warning: No PPAR tags found, using data from entire file which isn't associated with any DSP configuration"
+        )
+
+    single_dspparams_mmbgs = mmbgs[start:end]
+
+    return extract_raw_arrays(data, single_dspparams_mmbgs)
+
+
 def read_pds(filename, postprocess=True):
     """
     Converts data from a file called 'filename', into an xarray Dataset. Currently
@@ -379,8 +420,7 @@ def read_pds(filename, postprocess=True):
     xarray.Dataset: The IQ data dataset.
     """
     data = np.memmap(filename, mode="r")
-    raw_arrays = extract_raw_arrays(data, get_geometry(data))
-    # TODO(ALL) add failure if same decoder key repeats (temporary)
+    raw_arrays = single_dspparams_data(data)
     ds = xr.Dataset(
         {
             k: v
