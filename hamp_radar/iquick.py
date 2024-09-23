@@ -446,72 +446,59 @@ def untangle_iqf(
     nfft = first.sizes["fft"]
     ngate = first.sizes["range"]
 
-    last = read_iq(files[-1])
+    last = read_pds(files[-1])
     tau_frame = (last.time[-1] - tbeg) / (last.frm[-1] - fbeg + 1)
 
     tau_pulse = tau_frame / nfft
     dtfft = tau_pulse * xr.DataArray(np.arange(nfft), dims=("fft",))
 
     for file in files:
-        radar = read_iq(file)
+        radar = read_pds(file)
         if radar.sizes["fft"] != nfft:
             raise ValueError("fft dimension cannot change among files")
         if radar.sizes["range"] != ngate:
             raise ValueError("range dimension cannot change among files")
-        time_frame = tbeg + tau_frame * (radar.frm - fbeg)
-        print(f"First frame {radar.frm[0].values} of file {file}")
         if not np.all(np.diff(radar.time) > 0):
             raise ValueError("frames do not increment monotonically")
-            ds1 = (
-                xr.Dataset(
+        time_frame = tbeg + tau_frame * (radar.frm - fbeg)
+        print(f"First frame {radar.frm[0].values} of file {file}")
+        ds1 = xr.Dataset(
+            {
+                "TPow": radar["TPow"].assign_attrs({"long_name": "transmit power"}),
+                "co_NPw": radar["NPw"]
+                .isel(cocx=0)
+                .assign_attrs({"long_name": "co-channel power from noise source"}),
+                "cx_NPw": radar["NPw"]
+                .isel(cocx=1)
+                .assign_attrs(
+                    {"long_name": "cross-channel power from calibration source"}
+                ),
+                "co_CPw": radar["CPw"]
+                .isel(cocx=0)
+                .assign_attrs({"long_name": "co-channel power from noise source"}),
+                "cx_CPw": radar["CPw"]
+                .isel(cocx=1)
+                .assign_attrs(
+                    {"long_name": "cross-channel power from calibration source"}
+                ),
+            },
+            coords={
+                "radar_time": radar.time.assign_attrs(
                     {
-                        "TPow": radar["TPow"].assign_attrs(
-                            {"long_name": "transmit power"}
-                        ),
-                        "co_NPw": radar["NPw"]
-                        .isel(cocx=0)
-                        .assign_attrs(
-                            {"long_name": "co-channel power from noise source"}
-                        ),
-                        "cx_NPw": radar["NPw"]
-                        .isel(cocx=1)
-                        .assign_attrs(
-                            {"long_name": "cross-channel power from calibration source"}
-                        ),
-                        "co_CPw": radar["CPw"]
-                        .isel(cocx=0)
-                        .assign_attrs(
-                            {"long_name": "co-channel power from noise source"}
-                        ),
-                        "cx_CPw": radar["CPw"]
-                        .isel(cocx=1)
-                        .assign_attrs(
-                            {"long_name": "cross-channel power from calibration source"}
-                        ),
-                    },
-                )
-                .assign_coords(
-                    radar_time=(radar.time).assign_attrs(
-                        {
-                            "long_name": "timestamp for frame",
-                            "provenance": "assigned by radar",
-                        }
-                    )
-                )
-                .assign_coords(
-                    frame=(radar.frm).assign_attrs(
-                        {
-                            "long_name": "timestamp for frame",
-                            "method": "assigned by radar",
-                        }
-                    )
-                )
-            )
-            ds1.to_zarr(
-                f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-frms.zarr"
-            )
-
-            ds2 = (
+                        "long_name": "timestamp for frame",
+                        "provenance": "assigned by radar",
+                    }
+                ),
+                "frame": radar.frm.assign_attrs(
+                    {"long_name": "timestamp for frame", "method": "assigned by radar"}
+                ),
+            },
+        )
+        ds1.to_zarr(
+            f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-frms.zarr"
+        )
+        ds2 = (
+            (
                 xr.Dataset(
                     {
                         "co": radar["FFTD"]
@@ -540,24 +527,21 @@ def untangle_iqf(
                             ["i", "q"],
                             {"long_name": "signal phase (inphase or quadrature)"},
                         ),
+                        "time": (time_frame + dtfft).assign_attrs(
+                            {
+                                "long_name": "time",
+                                "provenance": "calculated in post procssing using geometry (frame_number, prf)",
+                            }
+                        ),
                     },
                 )
-                .assign_coords(
-                    time=(time_frame + dtfft).assign_attrs(
-                        {
-                            "long_name": "time",
-                            "provenance": "calculated in post procssing using geometry (frame_number, prf)",
-                        }
-                    )
-                )
-                .stack(time=["frame", "fft"], create_index=False)
-                .transpose("iq", "range", "time")
             )
-            ds2.to_zarr(
-                f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-cocx.zarr"
-            )
-        else:
-            raise ValueError("frames do not increment monotonically")
+            .stack(time=["frame", "fft"], create_index=False)
+            .transpose("iq", "range", "time")
+        )
+        ds2.to_zarr(
+            f"{zarr_path}/HALO-{pd.to_datetime(radar.time[0].values):%Y%m%da-%H%M%S}-cocx.zarr"
+        )
     return
 
 
