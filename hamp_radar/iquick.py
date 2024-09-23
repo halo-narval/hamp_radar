@@ -252,7 +252,7 @@ def untangle_iqf(
 
     c_air = 299792458.0 / 1.0003  # speed of light in air
 
-    first = read_iq(files[0])
+    first = read_pds(files[0])
 
     tbeg = first.time[0]
     fbeg = first.frm[0]
