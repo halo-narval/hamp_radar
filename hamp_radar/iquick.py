@@ -1,12 +1,16 @@
-
 from collections.abc import Iterable
 
 import numpy as np
 import xarray as xr
 from numpy.lib.stride_tricks import as_strided
 
-from geometries import SingleSubBlockGeometry, SingleMainBlockGeometry, MultiMainBlockGeometry
+from geometries import (
+    SingleSubBlockGeometry,
+    SingleMainBlockGeometry,
+    MultiMainBlockGeometry,
+)
 from decoders import decode_srvi, decode_moment, decode_iq, decode_time
+
 
 def main_ofs(mainblock):
     # blocktype and blocksize assumed to by 4 bytes long
@@ -210,6 +214,7 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
                 ),
             )
 
+
 def single_dspparams_data(data):
     """
     Returns raw arrays of data from the first occurrence of DSP parameters
@@ -292,9 +297,11 @@ def read_pds(filename, postprocess=True):
         ds = ds.pipe(postprocess_iq)
     return ds
 
+
 def postprocess_iq(ds):
     # TODO(ALL): move to new file
     return ds.pipe(decode_time)
+
 
 def main():
     import argparse

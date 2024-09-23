@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def decode_srvi(rawdata):
     return {
         "frm": (
