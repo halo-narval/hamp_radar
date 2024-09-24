@@ -167,12 +167,10 @@ def decode_moment(name):
 
     return _decode
 
-
 def decode_iq(ppar):
     nfft = 256
     if ppar is not None:
-        nfft = 256  # TODO(ALL) use ppar to read nfft value
-
+        nfft = 256 # TODO(ALL) use ppar to read nfft value
     def _decode(rawdata):
         return {
             "FFTD": (
