@@ -1,5 +1,23 @@
 import numpy as np
+import xarray as xr
+from typing import Optional
 
+
+def get_decoders(ppar: Optional[xr.Dataset]):
+    """
+    Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
+    section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
+    specific to the Ka radar currently in operation on HALO.
+    (last checked: 24th Septermber 2024).
+    """
+    return {
+        b"SRVI": decode_srvi,
+        b"SNRD": decode_moment("SNRD"),
+        b"VELD": decode_moment("VELD"),
+        b"HNED": decode_moment("HNED"),
+        b"RMSD": decode_moment("RMSD"),
+        b"FFTD": decode_iq(ppar),
+    }
 
 def decode_ppar(rawdata):
     rawdata = rawdata[0] # PPAR subblock is only 1 "frame" 
@@ -167,10 +185,12 @@ def decode_moment(name):
 
     return _decode
 
-def decode_iq(ppar):
+
+def decode_iq(ppar: Optional[xr.Dataset]):
     nfft = 256
     if ppar is not None:
-        nfft = 256 # TODO(ALL) use ppar to read nfft value
+        nfft = ppar.sft.values[0] # assumed to be xr.Dataset
+
     def _decode(rawdata):
         return {
             "FFTD": (
@@ -180,23 +200,6 @@ def decode_iq(ppar):
         }
 
     return _decode
-
-
-# Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
-# section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
-# specific to the Ka radar currently in operation on HALO.
-# (last checked: 24th Septermber 2024).
-decoders = {
-    b"SRVI": decode_srvi,
-    b"SNRD": decode_moment("SNRD"),
-    b"VELD": decode_moment("VELD"),
-    b"HNED": decode_moment("HNED"),
-    b"RMSD": decode_moment("RMSD"),
-    b"FFTD": decode_iq(
-        None
-    ),  # TODO(ALL) HACK: FFTD may or may not be IQ data. This is configured in PPAR
-}
-
 
 def decode_time(ds):
     """
