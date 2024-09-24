@@ -236,7 +236,7 @@ def single_dspparams_data(data):
     mmbgs = list(get_geometry(data))
 
     start = None
-    end = -1
+    end = len(mmbgs)
     for i, mmbg in enumerate(mmbgs):
         if mmbg.tag == "PPAR":
             if start is None:
