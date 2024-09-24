@@ -19,8 +19,9 @@ def get_decoders(ppar: Optional[xr.Dataset]):
         b"FFTD": decode_iq(ppar),
     }
 
+
 def decode_ppar(rawdata):
-    rawdata = rawdata[0] # PPAR subblock is only 1 "frame" 
+    rawdata = rawdata[0]  # PPAR subblock is only 1 "frame"
     return {
         "prf": (
             (),
@@ -189,7 +190,7 @@ def decode_moment(name):
 def decode_iq(ppar: Optional[xr.Dataset]):
     nfft = 256
     if ppar is not None:
-        nfft = ppar.sft.values[0] # assumed to be xr.Dataset
+        nfft = ppar.sft.values[0]  # assumed to be xr.Dataset
 
     def _decode(rawdata):
         return {
@@ -200,6 +201,7 @@ def decode_iq(ppar: Optional[xr.Dataset]):
         }
 
     return _decode
+
 
 def decode_time(ds):
     """

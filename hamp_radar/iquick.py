@@ -9,7 +9,7 @@ from geometries import (
     SingleMainBlockGeometry,
     MultiMainBlockGeometry,
 )
-from decoders import decoders, decode_time
+from decoders import get_decoders, decode_ppar, decode_time
 
 
 def main_ofs(mainblock):
@@ -245,7 +245,7 @@ def single_dspparams_data(data):
             else:
                 end = i
                 break
-    
+
     if start is None:
         msg = "Warning: No PPAR tags found, using data from entire file without an associated DSP configuration"
         warnings.warn(msg, UserWarning)
@@ -254,6 +254,7 @@ def single_dspparams_data(data):
         single_dspparams_mmbgs = mmbgs[start:end]
         ppar_raw_arrays = list(extract_raw_arrays(data, single_dspparams_mmbgs))
         return ppar_raw_arrays[0], ppar_raw_arrays[1:]
+
 
 def read_pds(filename, postprocess=True, return_ppar=False):
     """
@@ -268,9 +269,13 @@ def read_pds(filename, postprocess=True, return_ppar=False):
     Returns:
     xarray.Dataset: The IQ data dataset.
     """
-
     data = np.memmap(filename, mode="r")
-    raw_arrays = single_dspparams_data(data)
+    ppar, raw_arrays = single_dspparams_data(data)
+    if ppar is not None:
+        ppar = xr.Dataset({k: v for k, v in decode_ppar(ppar[2]).items()})
+        ppar.attrs = {"name": "DSP Configuration"}
+
+    decoders = get_decoders(ppar)
     ds = xr.Dataset(
         {
             k: v
@@ -279,8 +284,12 @@ def read_pds(filename, postprocess=True, return_ppar=False):
             for k, v in decoders[tag](array).items()
         }
     )
+    ds.attrs = {"name": "DATA"}
     if postprocess:
         ds = ds.pipe(postprocess_iq)
+
+    if return_ppar:
+        return ds, ppar
     return ds
 
 
@@ -296,7 +305,9 @@ def main():
     parser.add_argument("filename")
     args = parser.parse_args()
 
-    print(read_pds(args.filename).pipe(decode_time))
+    ds, ppar = read_pds(args.filename, return_ppar=True)
+    print(ppar)
+    print(ds)
 
 
 if __name__ == "__main__":
