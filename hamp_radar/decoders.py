@@ -1,6 +1,120 @@
 import numpy as np
 
 
+def decode_ppar(rawdata):
+    rawdata = rawdata[0] # PPAR subblock is only 1 "frame" 
+    return {
+        "prf": (
+            (),
+            rawdata[0:4].view("<i4"),
+            {"long_name": "pulse repetition frequency"},
+        ),
+        "pdr": (
+            (),
+            rawdata[4:8].view("<i4"),
+            {"long_name": "pulse duration"},
+        ),
+        "sft": (
+            (),
+            rawdata[8:12].view("<i4"),
+            {"long_name": "FFT Length"},
+        ),
+        "avc": (
+            (),
+            rawdata[12:16].view("<i4"),
+            {"long_name": "number of spectral (in-coherent) averages"},
+        ),
+        "ihp": (
+            (),
+            rawdata[16:20].view("<i4"),
+            {"long_name": "number of lowest range gate (for moment estimation)"},
+        ),
+        "chg": (
+            (),
+            rawdata[20:24].view("<i4"),
+            {"long_name": "count of gates (for moment estimation)"},
+        ),
+        "pol": (
+            (),
+            rawdata[24:28].view("<i4"),
+            {"long_name": "on/off polarimetric measurements"},
+        ),
+        "att": (
+            (),
+            rawdata[28:32].view("<i4"),
+            {"long_name": "on/off STC attenuation"},
+        ),
+        "tx": (
+            (),
+            rawdata[32:36].view("<i4"),
+            {"long_name": "first gate with full sensitivity in STC mode"},
+        ),
+        "wnd": (
+            (),
+            rawdata[44:48].view("<i4"),
+            {"long_name": "debug mode if not 0."},
+        ),
+        "pos": (
+            (),
+            rawdata[48:52].view("<i4"),
+            {
+                "long_name": "delay between sync and tx pulse for phase corr",
+                "units": "ns",
+            },
+        ),
+        "add": (
+            (),
+            rawdata[52:56].view("<i4"),
+            {"long_name": "add to pulse"},
+        ),
+        "of0": (
+            (),
+            rawdata[68:72].view("<i4"),
+            {"long_name": "detection threshold"},
+        ),
+        "swt": (
+            (),
+            rawdata[76:80].view("<i4"),
+            {"long_name": "2nd moment estimation threshold"},
+        ),
+        "osc": (
+            (),
+            rawdata[84:88].view("<i4"),
+            {"long_name": "flag - oscillosgram mode"},
+        ),
+        "HSn": (
+            (),
+            rawdata[100:104].view("<i4"),
+            {"long_name": "flag - Hildebrand div noise detection in noise gate"},
+        ),
+        "HSa": (
+            (),
+            rawdata[104:108].view("<f4"),
+            {"long_name": "flag - Hildebrand div noise detection in all gates"},
+        ),
+        "Raw_Gate1": (
+            (),
+            rawdata[124:128].view("<i4"),
+            {"long_name": "lowest range gate for spectra saving"},
+        ),
+        "Raw_Gate2": (
+            (),
+            rawdata[128:132].view("<i4"),
+            {"long_name": "range gates with atmospheric signal"},
+        ),
+        "Raw": (
+            (),
+            rawdata[132:136].view("<i4"),
+            {"long_name": "flag - IQ or spectra saving on/off"},
+        ),
+        "Prc": (
+            (),
+            rawdata[136:140].view("<i4"),
+            {"long_name": "flag - Moment estimation switched on/off"},
+        ),
+    }
+
+
 def decode_srvi(rawdata):
     return {
         "frm": (
@@ -54,14 +168,36 @@ def decode_moment(name):
     return _decode
 
 
-def decode_iq(rawdata):
-    # TODO(ALL) HACK: the 256 (for nfft) just appears, it probably should be read from somewhere else in the data
-    return {
-        "FFTD": (
-            ("frame", "range", "cocx", "fft", "iq"),
-            rawdata.view("<i2").reshape(rawdata.shape[0], -1, 2, 256, 2),
-        )
-    }
+def decode_iq(ppar):
+    nfft = 256
+    if ppar is not None:
+        nfft = 256  # TODO(ALL) use ppar to read nfft value
+
+    def _decode(rawdata):
+        return {
+            "FFTD": (
+                ("frame", "range", "cocx", "fft", "iq"),
+                rawdata.view("<i2").reshape(rawdata.shape[0], -1, 2, nfft, 2),
+            )
+        }
+
+    return _decode
+
+
+# Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
+# section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
+# specific to the Ka radar currently in operation on HALO.
+# (last checked: 24th Septermber 2024).
+decoders = {
+    b"SRVI": decode_srvi,
+    b"SNRD": decode_moment("SNRD"),
+    b"VELD": decode_moment("VELD"),
+    b"HNED": decode_moment("HNED"),
+    b"RMSD": decode_moment("RMSD"),
+    b"FFTD": decode_iq(
+        None
+    ),  # TODO(ALL) HACK: FFTD may or may not be IQ data. This is configured in PPAR
+}
 
 
 def decode_time(ds):

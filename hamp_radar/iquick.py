@@ -9,7 +9,7 @@ from geometries import (
     SingleMainBlockGeometry,
     MultiMainBlockGeometry,
 )
-from decoders import decode_srvi, decode_moment, decode_iq, decode_time
+from decoders import decoders, decode_time
 
 
 def main_ofs(mainblock):
@@ -269,19 +269,6 @@ def read_pds(filename, postprocess=True):
     Returns:
     xarray.Dataset: The IQ data dataset.
     """
-
-    # Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
-    # section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
-    # specific to the Ka radar currently in operation on HALO.
-    # (last checked: 13th Septermber 2024).
-    decoders = {
-        b"SRVI": decode_srvi,
-        b"SNRD": decode_moment("SNRD"),
-        b"VELD": decode_moment("VELD"),
-        b"HNED": decode_moment("HNED"),
-        b"RMSD": decode_moment("RMSD"),
-        b"FFTD": decode_iq,  # TODO(ALL) HACK: FFTD may or may not be IQ data. This is configured in PPAR
-    }
 
     data = np.memmap(filename, mode="r")
     raw_arrays = single_dspparams_data(data)
