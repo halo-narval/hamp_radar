@@ -233,7 +233,7 @@ def single_dspparams_data(data):
     list: A list of raw arrays extracted from the data.
     """
 
-    mmbgs = get_geometry(data)
+    mmbgs = list(get_geometry(data))
 
     start = None
     end = -1
