@@ -51,8 +51,7 @@ def main_ofs(mainblock):
     o = 0
     ofs = []
     while o + 8 < len(mainblock):
-        blocktype = bytes(mainblock[o : o + 4]).decode("ascii")
-        blocksize = int(mainblock[o + 4 : o + 8].view("<i4")[0])
+        blocktype, blocksize = get_tag_size(mainblock[o : o + 8])
         ofs.append(SingleSubBlockGeometry(blocktype, o + 8, blocksize))
         o += 8 + blocksize
     return ofs
