@@ -229,7 +229,7 @@ def single_dspparams_data(data):
     up to the next occurrence or up to the end of the data.
 
     The first value in the returned list of raw arrays is the DSP parameters
-    configuration (subblock tag == b"PPAR").
+    configuration (subblock tag == "PPAR").
 
     Raises warning if no PPAR tags are found in the data.
 
@@ -247,7 +247,7 @@ def single_dspparams_data(data):
     start = None
     end = len(mmbgs)
     for i, mmbg in enumerate(mmbgs):
-        if mmbg.subblocks[0].tag == b"PPAR":
+        if mmbg.subblocks[0].tag == "PPAR":
             if start is None:
                 start = i
             else:
