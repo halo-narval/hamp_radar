@@ -17,8 +17,14 @@ def get_tag_size(data):
     Extracts the tag (also known as signature) and the pointer for size
     from 'data' assuming layout as in Meteorological Ka-Band Cloud Radar
     MIRA35 Manual, section 2.3.1 'Definition of chunk common structure'
-    where the tag is the first 4 bytes of data and the pointer is the
-    next 4 bytes.
+
+    The tag is the first 4 bytes of data and the pointer for size is the
+    next 4 bytes. Bytes for tag are decoded to ascii string unless no valid
+    tag can be formed (see below). Bytes for size are interpreted as an integer
+
+    If the first 4 bytes cannot be decoded as an ASCII string, (e.g. because a
+    byte in the data for the tag represents a uint not in range 0-255), then
+    UnicodeDecodeError is swallowed and tag=None and size=0 are returned.
 
     Args:
         data (bytes): The data assumed to conform with Meteorological Ka-Band
@@ -26,7 +32,7 @@ def get_tag_size(data):
                       chunk common structure'
 
     Returns:
-        Tuple[bytes, int]: The tag and the pointer for size.
+        Tuple[Optional[str], int]: The tag and the pointer for size. If
     """
     try:
         return bytes(data[:4]).decode("ascii"), int(data[4:8].view("<i4")[0])
