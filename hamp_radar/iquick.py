@@ -9,7 +9,7 @@ from geometries import (
     SingleMainBlockGeometry,
     MultiMainBlockGeometry,
 )
-from decoders import decode_srvi, decode_moment, decode_iq, decode_time
+from decoders import get_decoders, decode_ppar, decode_time
 
 
 def main_ofs(mainblock):
@@ -232,6 +232,7 @@ def single_dspparams_data(data):
     Returns:
     list: A list of raw arrays extracted from the data.
     """
+    import warnings
 
     mmbgs = list(get_geometry(data))
 
@@ -246,17 +247,16 @@ def single_dspparams_data(data):
                 break
 
     if start is None:
-        start = 0
-        print(
-            "Warning: No PPAR tags found, using data from entire file which isn't associated with any DSP configuration"
-        )
+        msg = "Warning: No PPAR tags found, using data from entire file without an associated DSP configuration"
+        warnings.warn(msg, UserWarning)
+        return None, extract_raw_arrays(data, mmbgs)
+    else:
+        single_dspparams_mmbgs = mmbgs[start:end]
+        ppar_raw_arrays = list(extract_raw_arrays(data, single_dspparams_mmbgs))
+        return ppar_raw_arrays[0], ppar_raw_arrays[1:]
 
-    single_dspparams_mmbgs = mmbgs[start:end]
 
-    return extract_raw_arrays(data, single_dspparams_mmbgs)
-
-
-def read_pds(filename, postprocess=True):
+def read_pds(filename, postprocess=True, return_ppar=False):
     """
     Converts data from a file called 'filename', into an xarray Dataset. Currently
     only functioning with geometry of pds files and decoders for IQ data of
@@ -269,22 +269,13 @@ def read_pds(filename, postprocess=True):
     Returns:
     xarray.Dataset: The IQ data dataset.
     """
-
-    # Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
-    # section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
-    # specific to the Ka radar currently in operation on HALO.
-    # (last checked: 13th Septermber 2024).
-    decoders = {
-        b"SRVI": decode_srvi,
-        b"SNRD": decode_moment("SNRD"),
-        b"VELD": decode_moment("VELD"),
-        b"HNED": decode_moment("HNED"),
-        b"RMSD": decode_moment("RMSD"),
-        b"FFTD": decode_iq,  # TODO(ALL) HACK: FFTD may or may not be IQ data. This is configured in PPAR
-    }
-
     data = np.memmap(filename, mode="r")
-    raw_arrays = single_dspparams_data(data)
+    ppar, raw_arrays = single_dspparams_data(data)
+    if ppar is not None:
+        ppar = xr.Dataset({k: v for k, v in decode_ppar(ppar[2]).items()})
+        ppar.attrs = {"name": "DSP Configuration"}
+
+    decoders = get_decoders(ppar)
     ds = xr.Dataset(
         {
             k: v
@@ -293,8 +284,12 @@ def read_pds(filename, postprocess=True):
             for k, v in decoders[tag](array).items()
         }
     )
+    ds.attrs = {"name": "DATA"}
     if postprocess:
         ds = ds.pipe(postprocess_iq)
+
+    if return_ppar:
+        return ds, ppar
     return ds
 
 
@@ -310,7 +305,9 @@ def main():
     parser.add_argument("filename")
     args = parser.parse_args()
 
-    print(read_pds(args.filename).pipe(decode_time))
+    ds, ppar = read_pds(args.filename, return_ppar=True)
+    print(ppar)
+    print(ds)
 
 
 if __name__ == "__main__":
