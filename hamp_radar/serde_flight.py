@@ -76,7 +76,7 @@ def convert_to_datasetgeometries(
     datasets, is_ppar = [], False
     for pfg in pfgs:
         for mmbg in pfg.mainblocks:
-            if mmbg.subblocks[0].tag == b"PPAR":
+            if mmbg.subblocks[0].tag == "PPAR":
                 ppar = ppar_for_dataset(pfg.filename, mmbg)
                 if is_ppar:
                     # update ppar of existing dataset
