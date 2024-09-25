@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional
 from pathlib import Path
-from serde import serde
 
 
 @dataclass
@@ -79,7 +78,7 @@ class MultiMainBlockGeometry:
     subblocks: List[SingleSubBlockGeometry]
 
 
-@serde
+@dataclass
 class PdsFileGeometry:
     """
     Representation of a list of multiple main blocks of a .pds file with
