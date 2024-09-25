@@ -11,12 +11,12 @@ def get_decoders(ppar: Optional[xr.Dataset]):
     (last checked: 24th Septermber 2024).
     """
     return {
-        b"SRVI": decode_srvi,
-        b"SNRD": decode_moment("SNRD"),
-        b"VELD": decode_moment("VELD"),
-        b"HNED": decode_moment("HNED"),
-        b"RMSD": decode_moment("RMSD"),
-        b"FFTD": decode_iq(ppar),
+        "SRVI": decode_srvi,
+        "SNRD": decode_moment("SNRD"),
+        "VELD": decode_moment("VELD"),
+        "HNED": decode_moment("HNED"),
+        "RMSD": decode_moment("RMSD"),
+        "FFTD": decode_iq(ppar),
     }
 
 
