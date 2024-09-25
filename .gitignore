@@ -3,6 +3,9 @@ build
 bin
 __pycache__
 
+##### Bash scripts to ignore
+*.sh
+
 ##### VS Code #####
 .vscode
 .DS_Store
