@@ -14,10 +14,11 @@ def scan_pdsfile(filename: Path):
 
 
 def serialize_write_data(writefile: Path, data):
+    import orjson
     from serde.json import to_json
 
     with open(writefile, "w") as json_file:
-        json_file.write(to_json(data))
+        json_file.write(to_json(data, option=orjson.OPT_INDENT_2))
 
 
 def write_pdsfile_geometries(filenames: List[Path], geomsdir: Path):
