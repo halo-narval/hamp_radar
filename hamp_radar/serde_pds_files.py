@@ -47,7 +47,6 @@ def deserialize_data(filename: Path, obj):
 
     with open(filename, "r") as file:
         data = json.load(file)
-    data = json.dumps(data)
     return from_json(obj, data)
 
 
