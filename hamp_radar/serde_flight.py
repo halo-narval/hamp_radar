@@ -20,7 +20,7 @@ def ppar_for_dataset(
 ) -> DatasetBlockGeometry:
     """
     Creates a DatasetBlockGeometry object with only a single PPAR from a MultiMainBlockGeometry
-    instance. Assumes mmbg.tag == "PPAR".
+    instance. Requires mmbg.subblocks[0].tag == "PPAR" and len(subblocks) == 1.
 
     If mmbg.count > 1 a new mmbg is created containing only the last PPAR in the mmbg.
 
@@ -30,14 +30,11 @@ def ppar_for_dataset(
 
     Returns:
         DatasetBlockGeometry: A new dataset block geometry object with only the latest PPAR in the mmbg.
-
-    Raises:
-        ValueError: If there are two consecutive PPAR subblocks, indicating corrupt data.
     """
-    if len(mmbg.subblocks) > 1:
-        raise ValueError(
-            "Two consecutive PPAR subblocks should never occuur, corrupt data?"
-        )
+    assert mmbg.subblocks[0].tag == "PPAR", "mmbg subblocks should be PPARs"
+    assert (
+        len(mmbg.subblocks) == 1
+    ), "Consecutive PPAR subblocks should never occuur, corrupt data?"
 
     if mmbg.count > 1:
         # only use last PPAR for DSP configuration
