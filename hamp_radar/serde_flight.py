@@ -105,11 +105,11 @@ def write_flight_geometry(geom: FlightGeometry, geomsdir: Path):
 
     start = time.time()
 
-    writefile = geomsdir / Path(geom.flightname).with_suffix(".json")
+    writefile = geomsdir / Path(geom.name).with_suffix(".json")
     serialize_write_data(writefile, geom)
 
     end = time.time()
-    print(f"serializing {geom.flightname}: {end - start:.5f}s")
+    print(f"serializing {geom.name}: {end - start:.5f}s")
 
 
 def main():
