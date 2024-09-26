@@ -7,7 +7,8 @@ import numpy as np
 from iquick import extract_raw_arrays
 from decoders import decode_time, pds_decode
 from geometries import FlightGeometry, DatasetGeometry
-from serde_pds_files import deserialize_data
+
+from serde_flight import get_flight_geometry
 
 
 def postprocess_iq(ds):
@@ -70,12 +71,46 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "filename", help=".json file for serialised flight geometry", type=Path
+        "filenames",
+        nargs="+",
+        help=".json or .pds file(s) for flight, default assumes .pds file(s)",
+        type=Path,
+    )
+    parser.add_argument(
+        "--flightname",
+        default=None,
+        help="name of flight to label datasets with",
+        type=str,
+    )
+    parser.add_argument(
+        "--is_pdsjsons",
+        default=False,
+        help="True = filenames is for serialized .pds files of flight",
+        type=bool,
+    )
+    parser.add_argument(
+        "--is_flightjson",
+        default=False,
+        help="True = filenames is for serialized flight .json",
+        type=bool,
     )
     args = parser.parse_args()
 
-    geom = deserialize_data(args.filename, FlightGeometry)
-    for ds in read_flight(geom):
+    if args.is_flightjson:
+        if len(args.filenames) != 1:
+            raise ValueError("please provide one flight geometry file")
+        filenames = args.filenames[0]
+    else:
+        filenames = args.filenames
+
+    geom = get_flight_geometry(
+        filenames,
+        flightname=args.flightname,
+        is_flightjson=args.is_flightjson,
+        is_pdsjsons=args.is_pdsjsons,
+    )
+    flight_datasets = read_flight(geom)
+    for ds in flight_datasets:
         print(ds)
 
 

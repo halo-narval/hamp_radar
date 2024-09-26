@@ -1,7 +1,5 @@
 from collections.abc import Iterable
 
-import numpy as np
-import xarray as xr
 from numpy.lib.stride_tricks import as_strided
 
 from geometries import (
@@ -9,7 +7,6 @@ from geometries import (
     SingleMainBlockGeometry,
     MultiMainBlockGeometry,
 )
-from decoders import get_decoders, decode_ppar, decode_time
 
 
 def get_tag_size(data):
@@ -217,102 +214,3 @@ def extract_raw_arrays(data, mmbg: MultiMainBlockGeometry):
                 writeable=False,
             ),
         )
-
-
-def single_dspparams_data(data):
-    """
-    Returns raw arrays of data from the first occurrence of DSP parameters
-    up to the next occurrence or up to the end of the data.
-
-    The first value in the returned list of raw arrays is the DSP parameters
-    configuration (subblock tag == "PPAR").
-
-    Raises warning if no PPAR tags are found in the data.
-
-    Parameters:
-    data (any): The input data (memory map or open file) from which to extract the
-                arrays associated with a single DSP parameter configuration.
-
-    Returns:
-    list: A list of raw arrays extracted from the data.
-    """
-    import warnings
-
-    mmbgs = list(get_geometry(data))
-
-    start = None
-    end = len(mmbgs)
-    for i, mmbg in enumerate(mmbgs):
-        if mmbg.subblocks[0].tag == "PPAR":
-            if start is None:
-                start = i
-            else:
-                end = i
-                break
-
-    if start is None:
-        msg = "Warning: No PPAR tags found, using data from entire file without an associated DSP configuration"
-        warnings.warn(msg, UserWarning)
-        return None, extract_raw_arrays(data, mmbgs)
-    else:
-        single_dspparams_mmbgs = mmbgs[start:end]
-        ppar_raw_arrays = list(extract_raw_arrays(data, single_dspparams_mmbgs))
-        return ppar_raw_arrays[0], ppar_raw_arrays[1:]
-
-
-def read_pds(filename, postprocess=True, return_ppar=False):
-    """
-    Converts data from a file called 'filename', into an xarray Dataset. Currently
-    only functioning with geometry of pds files and decoders for IQ data of
-    Ka radar currently operational on HALO (last checked: 13th Septermber 2024).
-
-    Parameters:
-    filename (str): The path to the file containing the IQ data.
-    postprocess (bool): Whether to apply post-processing to the dataset. Default is True.
-
-    Returns:
-    xarray.Dataset: The IQ data dataset.
-    """
-    data = np.memmap(filename, mode="r")
-    ppar, raw_arrays = single_dspparams_data(data)
-    if ppar is not None:
-        ppar = xr.Dataset({k: v for k, v in decode_ppar(ppar[2]).items()})
-        ppar.attrs = {"name": "DSP Configuration"}
-
-    decoders = get_decoders(ppar)
-    ds = xr.Dataset(
-        {
-            k: v
-            for _, tag, array in raw_arrays
-            if tag in decoders
-            for k, v in decoders[tag](array).items()
-        }
-    )
-    ds.attrs = {"name": "DATA"}
-    if postprocess:
-        ds = ds.pipe(postprocess_iq)
-
-    if return_ppar:
-        return ds, ppar
-    return ds
-
-
-def postprocess_iq(ds):
-    # TODO(ALL): move to new file
-    return ds.pipe(decode_time)
-
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("filename")
-    args = parser.parse_args()
-
-    ds, ppar = read_pds(args.filename, return_ppar=True)
-    print(ppar)
-    print(ds)
-
-
-if __name__ == "__main__":
-    exit(main())
