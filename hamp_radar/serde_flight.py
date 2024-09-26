@@ -70,7 +70,8 @@ def convert_to_datasetgeometries(
     """
     import warnings
 
-    datasets, is_ppar = [], False
+    datasets = []
+    is_ppar = False
     for pfg in pfgs:
         for mmbg in pfg.mainblocks:
             if mmbg.subblocks[0].tag == "PPAR":
