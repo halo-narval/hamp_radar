@@ -180,13 +180,13 @@ def compact_geometry(
     )
 
 
-def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
+def extract_raw_arrays(data, mmbg: MultiMainBlockGeometry):
     """
     Generator function to extract arrays from 'data' based on the
-    geometry given by the iterator over MultiMainBlockGeometry instances.
+    geometry given by the MultiMainBlockGeometry instance.
 
     Iterating over a list of this generator yields a tuple for the subblocks
-    across all the MultiMainBlockGeometry instances sequentially.
+    from the MultiMainBlockGeometry instance sequentially.
 
     Optimisation uses NumPy library as_strided function to create a view of the
     original data array interpreted with different shape and strides. Shape will
@@ -197,8 +197,7 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
     Args:
         data: The input data (memory map or open file) from which to extract the
               arrays.
-        mmbgs (Iterable[MultiMainBlockGeometry]): An iterable of
-              MultiMainBlockGeometry instances.
+        mmbg (MultiMainBlockGeometry): A MultiMainBlockGeometry instance.
 
     Yields:
         tuple: A tuple containing:
@@ -206,19 +205,18 @@ def extract_raw_arrays(data, mmbgs: Iterable[MultiMainBlockGeometry]):
             - block.tag: The tag/signature of the subblock.
             - ndarray: A view of the data array corresponding to the subblock.
     """
-    for mmbg in mmbgs:
-        for block in mmbg.subblocks:
-            yield (
-                mmbg.tag,
-                block.tag,
-                as_strided(
-                    data[mmbg.offset + block.offset :],
-                    shape=(mmbg.count, block.size),
-                    strides=(mmbg.step if mmbg.count > 1 else 1, 1),
-                    subok=True,
-                    writeable=False,
-                ),
-            )
+    for block in mmbg.subblocks:
+        yield (
+            mmbg.tag,
+            block.tag,
+            as_strided(
+                data[mmbg.offset + block.offset :],
+                shape=(mmbg.count, block.size),
+                strides=(mmbg.step if mmbg.count > 1 else 1, 1),
+                subok=True,
+                writeable=False,
+            ),
+        )
 
 
 def single_dspparams_data(data):
