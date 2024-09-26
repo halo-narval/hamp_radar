@@ -12,6 +12,32 @@ from geometries import (
 from decoders import get_decoders, decode_ppar, decode_time
 
 
+def get_tag_size(data):
+    """
+    Extracts the tag (also known as signature) and the pointer for size
+    from 'data' assuming layout as in Meteorological Ka-Band Cloud Radar
+    MIRA35 Manual, section 2.3.1 'Definition of chunk common structure'
+
+    The tag is the first 4 bytes of data and the pointer for size is the
+    next 4 bytes. Bytes for tag are decoded to ascii string unless no valid
+    tag can be formed (see below). Bytes for size are interpreted as an integer
+
+    If the first 4 bytes cannot be decoded as an ASCII string, tag=None and size=0 are returned.
+
+    Args:
+        data (bytes): The data assumed to conform with Meteorological Ka-Band
+                      Cloud Radar MIRA35 Manual, section 2.3.1 'Definition of
+                      chunk common structure'
+
+    Returns:
+        Tuple[Optional[str], int]: The tag and the pointer for size.
+    """
+    try:
+        return bytes(data[:4]).decode("ascii"), int(data[4:8].view("<i4")[0])
+    except UnicodeDecodeError:
+        return None, 0
+
+
 def main_ofs(mainblock):
     # blocktype and blocksize assumed to by 4 bytes long
     """
@@ -29,30 +55,10 @@ def main_ofs(mainblock):
     o = 0
     ofs = []
     while o + 8 < len(mainblock):
-        blocktype = bytes(mainblock[o : o + 4])
-        blocksize = mainblock[o + 4 : o + 8].view("<i4")[0]
+        blocktype, blocksize = get_tag_size(mainblock[o : o + 8])
         ofs.append(SingleSubBlockGeometry(blocktype, o + 8, blocksize))
         o += 8 + blocksize
     return ofs
-
-
-def get_tag_size(data):
-    """
-    Extracts the tag (also known as signature) and the pointer for size
-    from 'data' assuming layout as in Meteorological Ka-Band Cloud Radar
-    MIRA35 Manual, section 2.3.1 'Definition of chunk common structure'
-    where the tag is the first 4 bytes of data and the pointer is the
-    next 4 bytes.
-
-    Args:
-        data (bytes): The data assumed to conform with Meteorological Ka-Band
-                      Cloud Radar MIRA35 Manual, section 2.3.1 'Definition of
-                      chunk common structure'
-
-    Returns:
-        Tuple[bytes, int]: The tag and the pointer for size.
-    """
-    return bytes(data[:4]), data[4:8].view("<i4")[0]
 
 
 def get_geometry(data):
@@ -221,7 +227,7 @@ def single_dspparams_data(data):
     up to the next occurrence or up to the end of the data.
 
     The first value in the returned list of raw arrays is the DSP parameters
-    configuration (subblock tag == b"PPAR").
+    configuration (subblock tag == "PPAR").
 
     Raises warning if no PPAR tags are found in the data.
 
@@ -239,7 +245,7 @@ def single_dspparams_data(data):
     start = None
     end = len(mmbgs)
     for i, mmbg in enumerate(mmbgs):
-        if mmbg.subblocks[0].tag == b"PPAR":
+        if mmbg.subblocks[0].tag == "PPAR":
             if start is None:
                 start = i
             else:
