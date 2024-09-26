@@ -7,22 +7,21 @@ from geometries import PdsFileGeometry
 from iquick import get_geometry
 
 
-def serialize_pdsfile(filename: Path):
-    from serde.json import to_json
-
+def scan_pdsfile(filename: Path):
     data = np.memmap(filename, mode="r")
     mmbgs = list(get_geometry(data))
-    pfg = PdsFileGeometry(filename, mmbgs)
-    return to_json(pfg)
+    return PdsFileGeometry(filename, mmbgs)
 
 
-def write_serialized_geometry(writefile: Path, geom):
+def serialize_write_data(writefile: Path, data):
     import json
+    from serde.json import to_json
+
+    serial = to_json(data)
 
     with open(writefile, "w") as json_file:
-        parsed = json.loads(geom)  # for nice formatting
-        json.dump(parsed, json_file, indent=2)
-    return parsed
+        json.dump(serial, json_file)
+    return serial
 
 
 def write_pdsfile_geometries(filenames: List[Path], geomsdir: Path):
@@ -32,9 +31,9 @@ def write_pdsfile_geometries(filenames: List[Path], geomsdir: Path):
         for filename in filenames:
             start = time.time()
 
-            geom = serialize_pdsfile(filename)
+            geom = scan_pdsfile(filename)
             writefile = geomsdir / Path(filename.name).with_suffix(".json")
-            write_serialized_geometry(writefile, geom)
+            serialize_write_data(writefile, geom)
 
             end = time.time()
             print(f"serializing {filename}: {round(end - start, 5)} s")
@@ -42,7 +41,7 @@ def write_pdsfile_geometries(filenames: List[Path], geomsdir: Path):
         raise ValueError("'" + str(geomsdir) + "' directory for writing doesn't exist")
 
 
-def deserialize_file_geometry(filename: Path, obj):
+def deserialize_data(filename: Path, obj):
     import json
     from serde.json import from_json
 
@@ -57,12 +56,10 @@ def get_pdsfile_geometries(
 ) -> Iterable[PdsFileGeometry]:
     if is_jsons:
         for filename in filenames:
-            yield deserialize_file_geometry(filename, PdsFileGeometry)
+            yield deserialize_data(filename, PdsFileGeometry)
     else:
         for filename in filenames:
-            data = np.memmap(filename, mode="r")
-            mmbgs = list(get_geometry(data))
-            yield PdsFileGeometry(filename, mmbgs)
+            yield scan_pdsfile(filename)
 
 
 def main():
