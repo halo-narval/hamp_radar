@@ -178,7 +178,9 @@ def decode_moment(name):
 def decode_fftd(rawdata, ppar: Optional[xr.Dataset] = None):
     if ppar is None:
         raise ValueError("need PPAR to decode FFTD")
-    # TODO raise eror is osc != [thing]
+    if ppar.osc.values != 1:
+        raise ValueError("FFTD decoder only exists for IQ data (when osc==1)")
+
     nfft = ppar.sft.values
     return {
         "iq": (
