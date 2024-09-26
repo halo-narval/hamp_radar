@@ -95,3 +95,49 @@ class PdsFileGeometry:
 
     filename: Path
     mainblocks: List[MultiMainBlockGeometry]
+
+
+@dataclass
+class DatasetBlockGeometry:
+    """
+    Representation of a block of a dataset is a multimainblock with
+    the name of the .pds file it's sourced from.
+
+    Attributes:
+        filename (Path): The name of the .pds file the mmbg is from.
+        mainblock (MultiMainBlockGeometry): The mmbg in the file.
+    """
+
+    filename: Path
+    mainblock: MultiMainBlockGeometry
+
+
+@dataclass
+class DatasetGeometry:
+    """
+    Representation of a dataset's geometry is a DatasetBlockGeometry instance
+    for the PPAR and a list of DatasetBlockGeometry instances
+    for the data associated with that DSP configuration.
+
+    Attributes:
+        ppar (DatasetBlockGeometry): The block for the PPAR in the file.
+        data (List[DatasetBlockGeometry]): The blocks for the data associated with that PPAR.
+    """
+
+    ppar: DatasetBlockGeometry
+    data: List[DatasetBlockGeometry]
+
+
+@dataclass
+class FlightGeometry:
+    """
+    Representation of a flight is the name of the flight combined with the
+    geometries for the series of datasets that compose that flight.
+
+    Attributes:
+        name (str): name of the flith
+        datasets (List[DatasetGeometry]): list of geometries for the datasets of the flight.
+    """
+
+    name: str
+    datasets: List[DatasetGeometry]

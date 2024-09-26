@@ -32,7 +32,7 @@ def write_pdsfile_geometries(filenames: List[Path], geomsdir: Path):
             serialize_write_data(writefile, geom)
 
             end = time.time()
-            print(f"serializing {filename}: {round(end - start, 5)} s")
+            print(f"serializing {filename}: {end - start:.5f} s")
     else:
         raise ValueError("'" + str(geomsdir) + "' directory for writing doesn't exist")
 
