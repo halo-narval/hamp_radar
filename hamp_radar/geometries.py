@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 from pathlib import Path
 
+
 @dataclass
 class SingleSubBlockGeometry:
     """
@@ -96,6 +97,7 @@ class PdsFileGeometry:
     mainblocks: List[MultiMainBlockGeometry]
 
 
+@dataclass
 class DatasetBlockGeometry:
     """
     Representation of a block of a dataset is a multimainblock with
