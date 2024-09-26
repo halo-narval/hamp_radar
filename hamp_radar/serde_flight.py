@@ -64,9 +64,6 @@ def convert_to_datasetgeometries(
 
     Returns:
         List[DatasetGeometry]: A list of DatasetGeometry instances, e.g. for each dataset in a flight.
-
-    Raises:
-        UserWarning: If data is found before the first "PPAR" tag in the PdsFileGeometry's mainblocks.
     """
     import warnings
 
