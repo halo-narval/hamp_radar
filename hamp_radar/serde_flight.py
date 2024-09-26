@@ -54,7 +54,7 @@ def convert_to_datasetgeometries(
     """
     Converts an iterable of PdsFileGeometry instances into a list of DatasetGeometry instances.
 
-    This function converys a collection of PdsFileGeometry instances into
+    This function converts a collection of PdsFileGeometry instances into
     DatasetGeometry instances. It identifies "PPAR" tags to start new datasets and appends
     data blocks to the most recent dataset. If consecutibe PPAR tags are found withou
     data in between, the ppar of the current dataset is updated to match the last given PPAR.
