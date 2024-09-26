@@ -18,6 +18,8 @@ classifiers = [
 python = ">=3.10"
 numpy = "*"
 xarray = "*"
+pyserde = "*"
+orjson = "*"
 
 [tool.poetry.group.test.dependencies]
 pytest = "*"
