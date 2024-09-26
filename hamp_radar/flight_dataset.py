@@ -16,14 +16,18 @@ def postprocess_iq(ds):
     return ds.pipe(decode_time)
 
 
-def read_datasetblock(datablock: DatasetGeometry, ppar: Optional[xr.Dataset] = None):
+def read_datasetblock(
+    datablock: DatasetGeometry,
+    ppar: Optional[xr.Dataset] = None,
+):
     data = np.memmap(datablock.filename, mode="r")
     raw_arrays = extract_raw_arrays(data, datablock.mainblock)
+    radar_tag = datablock.mainblock.tag
     ds = xr.Dataset(
         {
             k: v
             for _, tag, array in raw_arrays
-            for k, v in pds_decode(tag, array, ppar).items()
+            for k, v in pds_decode(tag, array, radar_tag, ppar).items()
         }
     )
     return ds

@@ -3,8 +3,14 @@ import xarray as xr
 from typing import Optional
 
 
-def pds_decode(tag: str, rawdata, ppar: Optional[xr.Dataset] = None):
-    # TODO raise error if radar tag is not HAXC
+def pds_decode(
+    tag: str,
+    rawdata,
+    radar_tag: Optional[str] = None,
+    ppar: Optional[xr.Dataset] = None,
+):
+    if radar_tag != "HAXC":
+        raise ValueError("Decoders only exist for HAXC Radar")
     return decoders[tag](rawdata, ppar)
 
 
