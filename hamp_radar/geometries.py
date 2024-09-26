@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional
+from pathlib import Path
 
 
 @dataclass
@@ -75,3 +76,22 @@ class MultiMainBlockGeometry:
     count: int
     step: Optional[int]
     subblocks: List[SingleSubBlockGeometry]
+
+
+@dataclass
+class PdsFileGeometry:
+    """
+    Representation of a list of multiple main blocks of a .pds file with
+    multiple 'main chunks' as in Meteorological Ka-Band Cloud Radar MIRA35
+    Manual, section 2.3.2 'File structure'.
+
+    Allows for a list of MultipleMainBlockGeometry instances to be
+    stored with the name of the file they originate from.
+
+    Attributes:
+        filename (Path): The name of the .pds file the mmbgs are associated with.
+        mainblocks (List[MultiMainBlockGeometry]): The mmbgs in the file.
+    """
+
+    filename: Path
+    mainblocks: List[MultiMainBlockGeometry]
