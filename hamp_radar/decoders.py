@@ -108,7 +108,7 @@ def decode_ppar(rawdata):
         ),
         "HSa": (
             (),
-            rawdata[104:108].view("<f4"),
+            rawdata[104:108].view("<f4")[0],
             {"long_name": "flag - Hildebrand div noise detection in all gates"},
         ),
         "Raw_Gate1": (
