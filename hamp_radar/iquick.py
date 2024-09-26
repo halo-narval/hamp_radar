@@ -30,7 +30,7 @@ def get_tag_size(data):
                       chunk common structure'
 
     Returns:
-        Tuple[Optional[str], int]: The tag and the pointer for size. If
+        Tuple[Optional[str], int]: The tag and the pointer for size.
     """
     try:
         return bytes(data[:4]).decode("ascii"), int(data[4:8].view("<i4")[0])
