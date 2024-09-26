@@ -103,19 +103,16 @@ def scan_flight(flightname: str, pfgs: Iterable[PdsFileGeometry]):
     return FlightGeometry(flightname, datasets)
 
 
-def write_flight_geometry(
-    flightname: str, pfgs: Iterable[PdsFileGeometry], geomsdir: Path
-):
+def write_flight_geometry(geom: FlightGeometry, geomsdir: Path):
     import time
 
     start = time.time()
 
-    geom = scan_flight(flightname, pfgs)
-    writefile = geomsdir / Path(flightname).with_suffix(".json")
+    writefile = geomsdir / Path(geom.flightname).with_suffix(".json")
     serialize_write_data(writefile, geom)
 
     end = time.time()
-    print(f"serializing {flightname}: {round(end - start, 5)} s")
+    print(f"serializing {geom.flightname}: {end - start:.5f}s")
 
 
 def main():
@@ -148,7 +145,8 @@ def main():
     args = parser.parse_args()
 
     pfgs = get_pdsfile_geometries(args.filenames, is_jsons=args.is_jsons)
-    write_flight_geometry(args.flightname, pfgs, args.geomsdir)
+    geom = scan_flight(args.flightname, pfgs)
+    write_flight_geometry(geom, args.geomsdir)
 
 
 if __name__ == "__main__":
