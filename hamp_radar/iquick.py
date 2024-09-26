@@ -22,9 +22,7 @@ def get_tag_size(data):
     next 4 bytes. Bytes for tag are decoded to ascii string unless no valid
     tag can be formed (see below). Bytes for size are interpreted as an integer
 
-    If the first 4 bytes cannot be decoded as an ASCII string, (e.g. because a
-    byte in the data for the tag represents a uint not in range 0-255), then
-    UnicodeDecodeError is swallowed and tag=None and size=0 are returned.
+    If the first 4 bytes cannot be decoded as an ASCII string, tag=None and size=0 are returned.
 
     Args:
         data (bytes): The data assumed to conform with Meteorological Ka-Band
