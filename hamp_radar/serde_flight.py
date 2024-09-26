@@ -11,7 +11,7 @@ from geometries import (
 )
 from serde_pds_files import (
     get_pdsfile_geometries,
-    write_serialized_geometry,
+    serialize_write_data,
 )
 
 
@@ -100,12 +100,9 @@ def convert_to_datasetgeometries(
     return datasets
 
 
-def serialize_flight(flightname: str, pfgs: Iterable[PdsFileGeometry]):
-    from serde.json import to_json
-
+def scan_flight(flightname: str, pfgs: Iterable[PdsFileGeometry]):
     datasets = convert_to_datasetgeometries(pfgs)
-    flight = FlightGeometry(flightname, datasets)
-    return to_json(flight)
+    return FlightGeometry(flightname, datasets)
 
 
 def write_flight_geometry(
@@ -115,9 +112,9 @@ def write_flight_geometry(
 
     start = time.time()
 
+    geom = scan_flight(flightname, pfgs)
     writefile = geomsdir / Path(flightname).with_suffix(".json")
-    geom = serialize_flight(flightname, pfgs)
-    write_serialized_geometry(writefile, geom)
+    serialize_write_data(writefile, geom)
 
     end = time.time()
     print(f"serializing {flightname}: {round(end - start, 5)} s")
