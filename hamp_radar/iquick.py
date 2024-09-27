@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 
+import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
 from geometries import (
@@ -177,6 +178,18 @@ def compact_geometry(
     )
 
 
+def _memory_extent(a):
+    return np.sum((np.array(a.shape) - 1) * np.array(a.strides)) + a.itemsize
+
+
+def checked_strided(a, shape, strides, **kwargs):
+    b = as_strided(a, shape=shape, strides=strides, **kwargs)
+    assert _memory_extent(b) <= _memory_extent(
+        a
+    ), f"{a.shape} {a.strides} {a.itemsize} -> {b.shape} {b.strides} {b.itemsize}"
+    return b
+
+
 def extract_raw_arrays(data, mmbg: MultiMainBlockGeometry):
     """
     Generator function to extract arrays from 'data' based on the
@@ -206,7 +219,7 @@ def extract_raw_arrays(data, mmbg: MultiMainBlockGeometry):
         yield (
             mmbg.tag,
             block.tag,
-            as_strided(
+            checked_strided(
                 data[mmbg.offset + block.offset :],
                 shape=(mmbg.count, block.size),
                 strides=(mmbg.step if mmbg.count > 1 else 1, 1),
