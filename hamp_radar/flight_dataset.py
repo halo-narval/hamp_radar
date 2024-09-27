@@ -20,17 +20,21 @@ def read_datasetblock(
     datablock: DatasetGeometry,
     ppar: Optional[xr.Dataset] = None,
 ):
-    data = np.memmap(datablock.filename, mode="r")
-    raw_arrays = extract_raw_arrays(data, datablock.mainblock)
-    radar_tag = datablock.mainblock.tag
-    ds = xr.Dataset(
-        {
-            k: v
-            for _, tag, array in raw_arrays
-            for k, v in pds_decode(tag, array, radar_tag, ppar).items()
-        }
-    )
-    return ds
+    try:
+        data = np.memmap(datablock.filename, mode="r")
+        raw_arrays = extract_raw_arrays(data, datablock.mainblock)
+        radar_tag = datablock.mainblock.tag
+        return xr.Dataset(
+            {
+                k: v
+                for _, tag, array in raw_arrays
+                for k, v in pds_decode(tag, array, radar_tag, ppar).items()
+            }
+        )
+    except Exception as e:
+        e.add_note(f"While reading '{datablock.filename}'")
+        e.add_note(str(datablock))
+        raise
 
 
 def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
