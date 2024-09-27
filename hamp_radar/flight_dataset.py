@@ -5,15 +5,10 @@ import xarray as xr
 import numpy as np
 
 from iquick import extract_raw_arrays
-from decoders import decode_time, pds_decode
+from decoders import pds_decode
 from geometries import FlightGeometry, DatasetGeometry
-
+from postprocess import postprocess_iq
 from serde_flight import get_flight_geometry
-
-
-def postprocess_iq(ds):
-    # TODO(ALL): move to new file
-    return ds.pipe(decode_time)
 
 
 def read_datasetblock(
