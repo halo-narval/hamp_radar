@@ -3,24 +3,18 @@ import xarray as xr
 from typing import Optional
 
 
-def get_decoders(ppar: Optional[xr.Dataset]):
-    """
-    Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
-    section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
-    specific to the Ka radar currently in operation on HALO.
-    (last checked: 24th Septermber 2024).
-    """
-    return {
-        "SRVI": decode_srvi,
-        "SNRD": decode_moment("SNRD"),
-        "VELD": decode_moment("VELD"),
-        "HNED": decode_moment("HNED"),
-        "RMSD": decode_moment("RMSD"),
-        "FFTD": decode_iq(ppar),
-    }
+def pds_decode(
+    tag: str,
+    rawdata,
+    radar_tag: Optional[str] = None,
+    ppar: Optional[xr.Dataset] = None,
+):
+    if radar_tag != "HAXC":
+        raise ValueError("Decoders only exist for HAXC Radar")
+    return decoders[tag](rawdata, ppar)
 
 
-def decode_ppar(rawdata):
+def decode_ppar(rawdata, ppar: Optional[xr.Dataset] = None):
     rawdata = rawdata[0]  # PPAR subblock is only 1 "frame"
     return {
         "prf": (
@@ -134,7 +128,7 @@ def decode_ppar(rawdata):
     }
 
 
-def decode_srvi(rawdata):
+def decode_srvi(rawdata, ppar: Optional[xr.Dataset] = None):
     return {
         "frm": (
             ("frame",),
@@ -175,7 +169,7 @@ def decode_srvi(rawdata):
 
 
 def decode_moment(name):
-    def _decode(rawdata):
+    def _decode(rawdata, ppar: Optional[xr.Dataset] = None):
         # TODO(ALL): HACK: this arbitrarily reduces the range dimension to 512 to fit with the IQ output
         return {
             name: (
@@ -187,20 +181,36 @@ def decode_moment(name):
     return _decode
 
 
-def decode_iq(ppar: Optional[xr.Dataset]):
-    nfft = 256
-    if ppar is not None:
-        nfft = ppar.sft.values  # assumed to be xr.Dataset
+def decode_fftd(rawdata, ppar: Optional[xr.Dataset] = None):
+    if ppar is None:
+        raise ValueError("need PPAR to decode FFTD")
+    if ppar.osc.values != 1:
+        raise ValueError("FFTD decoder only exists for IQ data (when osc==1)")
 
-    def _decode(rawdata):
-        return {
-            "FFTD": (
-                ("frame", "range", "cocx", "fft", "iq"),
-                rawdata.view("<i2").reshape(rawdata.shape[0], -1, 2, nfft, 2),
-            )
-        }
+    nfft = ppar.sft.values
+    return {
+        "iq": (
+            ("frame", "range", "cocx", "fft", "iq"),
+            rawdata.view("<i2").reshape(rawdata.shape[0], -1, 2, nfft, 2),
+        )
+    }
 
-    return _decode
+
+"""
+    Decoders for IQ data as in Meteorological Ka-Band Cloud Radar MIRA35 Manual,
+    section 2.3.3.2 'Embedded chain type 2; Data chain'. Note these decoders are
+    specific to the Ka radar currently in operation on HALO.
+    (last checked: 26th Septermber 2024).
+"""
+decoders = {
+    "PPAR": decode_ppar,
+    "SRVI": decode_srvi,
+    "SNRD": decode_moment("SNRD"),
+    "VELD": decode_moment("VELD"),
+    "HNED": decode_moment("HNED"),
+    "RMSD": decode_moment("RMSD"),
+    "FFTD": decode_fftd,
+}
 
 
 def decode_time(ds):

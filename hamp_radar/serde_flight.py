@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import List
+from typing import List, Optional, Union
 from pathlib import Path
 
 from geometries import (
@@ -12,6 +12,7 @@ from geometries import (
 from serde_pds_files import (
     get_pdsfile_geometries,
     serialize_write_data,
+    deserialize_data,
 )
 
 
@@ -105,11 +106,26 @@ def write_flight_geometry(geom: FlightGeometry, geomsdir: Path):
 
     start = time.time()
 
-    writefile = geomsdir / Path(geom.flightname).with_suffix(".json")
+    writefile = geomsdir / Path(geom.name).with_suffix(".json")
     serialize_write_data(writefile, geom)
 
     end = time.time()
-    print(f"serializing {geom.flightname}: {end - start:.5f}s")
+    print(f"serializing {geom.name}: {end - start:.5f}s")
+
+
+def get_flight_geometry(
+    filenames: Union[Path, List[Path]],
+    flightname: Optional[str] = None,
+    is_flightjson=False,
+    is_pdsjsons=False,
+) -> FlightGeometry:
+    if is_flightjson:
+        return deserialize_data(filenames, FlightGeometry)
+    else:
+        if flightname is None:
+            raise ValueError("please provide a flightname for the flight geometry")
+        pfgs = get_pdsfile_geometries(filenames, is_jsons=is_pdsjsons)
+        return scan_flight(flightname, pfgs)
 
 
 def main():
