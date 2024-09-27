@@ -20,6 +20,7 @@ numpy = "*"
 xarray = "*"
 pyserde = "*"
 orjson = "*"
+more_itertools = "*"
 
 [tool.poetry.group.test.dependencies]
 pytest = "*"

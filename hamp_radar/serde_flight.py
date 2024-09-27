@@ -16,14 +16,19 @@ from serde_pds_files import (
 )
 
 
-def ppar_for_dataset(
+def is_ppar(block):
+    return block.mainblock.subblocks[0].tag == "PPAR"
+
+
+def pparblock_for_dataset(
     filename: Path, mmbg: MultiMainBlockGeometry
 ) -> DatasetBlockGeometry:
     """
     Creates a DatasetBlockGeometry object with only a single PPAR from a MultiMainBlockGeometry
     instance. Requires mmbg.subblocks[0].tag == "PPAR" and len(subblocks) == 1.
 
-    If mmbg.count > 1 a new mmbg is created containing only the last PPAR in the mmbg.
+    If mmbg.count > 1 a new mmbg is created containing only the last PPAR in the
+    mmbg (i.e. the latest DSP configuration).
 
     Args:
         filename (Path): The path to the .pds file associated with the mmbg.
@@ -38,66 +43,127 @@ def ppar_for_dataset(
     ), "Consecutive PPAR subblocks should never occuur, corrupt data?"
 
     if mmbg.count > 1:
-        # only use last PPAR for DSP configuration
         offset = mmbg.offset + mmbg.step * (mmbg.count - 1)
         count = 1
         mmbg = MultiMainBlockGeometry(
             mmbg.tag, offset, count, mmbg.step, mmbg.subblocks
         )
 
-    ppar = DatasetBlockGeometry(filename, mmbg)
+    return DatasetBlockGeometry(filename, mmbg)
+
+
+def generate_dbgs(pfgs: Iterable[PdsFileGeometry]) -> Iterable[DatasetBlockGeometry]:
+    """
+    Generates DatasetBlockGeometry intsances from a series of PdsFileGeometry instances
+
+    Args:
+        pfgs (Iterable[PdsFileGeometry]): An iterable of PdsFileGeometry instances.
+
+    Yields:
+        DatasetBlockGeometry: A DatasetBlockGeometry object for each mainblock in
+                              the PdsFileGeometry iterable.
+    """
+    for pfg in pfgs:
+        for mmbg in pfg.mainblocks:
+            if mmbg.subblocks[0].tag == "PPAR":
+                yield pparblock_for_dataset(pfg.filename, mmbg)
+            else:
+                yield DatasetBlockGeometry(pfg.filename, mmbg)
+
+
+def next_pparblock(blocks: Iterable[DatasetBlockGeometry]) -> DatasetBlockGeometry:
+    """
+    Finds and returns the next PPAR block from an (peekable) iterable of dataset blocks.
+
+    Function finds the "last of the first" PPAR block, i.e. it finds the first
+    occurance a PPAR in the list of DatasetBlockGeometry instances and if more
+    PPAR blocks follow consecutively after this one then the latest PPAR block
+    in the consecutive PPARs is returned.
+
+    Args:
+        blocks (Iterable[DatasetBlockGeometry]): Peekable iterable of dataset blocks to search through.
+
+    Returns:
+        DatasetBlockGeometry: The next PPAR block found in the iterable.
+
+    Raises:
+        IndexError: If no PPAR block is found by iterating over the dataset blocks.
+    """
+    import warnings
+
+    try:
+        while not is_ppar(blocks.peek()):
+            # skip data if no PPAR block has yet been found
+            warnings.warn(
+                "Warning: data blocks before PPAR skipped",
+                UserWarning,
+            )
+            skipblock = next(blocks)
+    except IndexError as e:
+        e.add_note(f"No PPAR found in list of dataset blocks for {skipblock.filename}")
+        raise
+
+    while is_ppar(blocks.peek()):
+        ppar = next(blocks)
+        if not blocks:
+            warnings.warn(
+                "Warning: no data blocks appear after PPAR",
+                UserWarning,
+            )
+            break
+
     return ppar
+
+
+def next_datablocks(
+    blocks: Iterable[DatasetBlockGeometry],
+) -> List[DatasetBlockGeometry]:
+    """
+    Returns a list of dataset blocks from an (peekable) iterable for all the blocks
+    until a PPAR block is found of the iterable is exhausted.
+
+    Args:
+        blocks (Iterable[DatasetBlockGeometry]): An iterable of dataset blocks to search through.
+
+    Returns:
+        List[DatasetBlockGeometry]: The dataset blocks up to the next PPAR / end of the iterable.
+    """
+
+    def gen_datablocks():
+        while blocks and not is_ppar(blocks.peek()):
+            yield next(blocks)
+
+    return list(gen_datablocks())
 
 
 def convert_to_datasetgeometries(
     pfgs: Iterable[PdsFileGeometry],
-) -> List[DatasetGeometry]:
+) -> Iterable[DatasetGeometry]:
     """
-    Converts an iterable of PdsFileGeometry instances into a list of DatasetGeometry instances.
+    Converts an iterable of PdsFileGeometry instances into an iterable of DatasetGeometry instances.
 
     This function converts a collection of PdsFileGeometry instances into
-    DatasetGeometry instances. It identifies "PPAR" tags to start new datasets and appends
-    data blocks to the most recent dataset. If consecutibe PPAR tags are found withou
-    data in between, the ppar of the current dataset is updated to match the last given PPAR.
+    DatasetGeometry instances. It identifies the next "PPAR" tag in the remaining mainblocks from
+    the PdsFileGeometry instances and the associated data thereafter in order to return the
+    geometry of the next dataset from iterating over PdsFileGeometry instances.
 
     Args:
         pfgs (Iterable[PdsFileGeometry]): An iterable of PdsFileGeometry instances, e.g. for a flight.
 
     Returns:
-        List[DatasetGeometry]: A list of DatasetGeometry instances, e.g. for each dataset in a flight.
+        Iterable[DatasetGeometry]: An iterable list of DatasetGeometry instances, e.g. for each dataset in a flight.
     """
-    import warnings
+    from more_itertools import peekable
 
-    datasets = []
-    is_ppar = False
-    for pfg in pfgs:
-        for mmbg in pfg.mainblocks:
-            if mmbg.subblocks[0].tag == "PPAR":
-                ppar = ppar_for_dataset(pfg.filename, mmbg)
-                if is_ppar:
-                    # update ppar of existing dataset
-                    datasets[-1].ppar = ppar
-                else:
-                    # start new dataset
-                    datasets.append(DatasetGeometry(ppar, []))
-                    is_ppar = True
-            else:
-                if datasets == []:
-                    # skip data if no PPAR has yet been found in pfg.mainblocks
-                    warnings.warn(
-                        "Warning: data found before first PPAR is being skipped",
-                        UserWarning,
-                    )
-                else:
-                    # append to latest dataset
-                    is_ppar = False
-                    datablock = DatasetBlockGeometry(pfg.filename, mmbg)
-                    datasets[-1].data.append(datablock)
-    return datasets
+    blocks = peekable(generate_dbgs(pfgs))
+    while blocks:
+        ppar = next_pparblock(blocks)
+        data = next_datablocks(blocks)
+        yield DatasetGeometry(ppar, data)
 
 
 def scan_flight(flightname: str, pfgs: Iterable[PdsFileGeometry]):
-    datasets = convert_to_datasetgeometries(pfgs)
+    datasets = list(convert_to_datasetgeometries(pfgs))
     return FlightGeometry(flightname, datasets)
 
 
