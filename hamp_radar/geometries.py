@@ -129,14 +129,16 @@ class DatasetGeometry:
 
 
 @dataclass
-class FlightGeometry:
+class CollectionGeometry:
     """
-    Representation of a flight is the name of the flight combined with the
-    geometries for the series of datasets that compose that flight.
+    Representation of a collection is the name of the collection and a series of
+    geometries for datasets within the collection.
+
+    Useful e.g. for a collection of datasets from a single flight with name="flightname"
 
     Attributes:
-        name (str): name of the flith
-        datasets (List[DatasetGeometry]): list of geometries for the datasets of the flight.
+        name (str): name of the collection
+        datasets (List[DatasetGeometry]): list of geometries for the datasets in the collection.
     """
 
     name: str

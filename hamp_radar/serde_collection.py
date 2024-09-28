@@ -7,7 +7,7 @@ from geometries import (
     PdsFileGeometry,
     DatasetBlockGeometry,
     DatasetGeometry,
-    FlightGeometry,
+    CollectionGeometry,
 )
 from serde_pds_files import (
     get_pdsfile_geometries,
@@ -162,12 +162,12 @@ def convert_to_datasetgeometries(
         yield DatasetGeometry(ppar, data)
 
 
-def scan_flight(flightname: str, pfgs: Iterable[PdsFileGeometry]):
+def scan_collection(name: str, pfgs: Iterable[PdsFileGeometry]):
     datasets = list(convert_to_datasetgeometries(pfgs))
-    return FlightGeometry(flightname, datasets)
+    return CollectionGeometry(name, datasets)
 
 
-def write_flight_geometry(geom: FlightGeometry, geomsdir: Path):
+def write_collection_geometry(geom: CollectionGeometry, geomsdir: Path):
     import time
 
     start = time.time()
@@ -179,27 +179,27 @@ def write_flight_geometry(geom: FlightGeometry, geomsdir: Path):
     print(f"serializing {geom.name}: {end - start:.5f}s")
 
 
-def get_flight_geometry(
+def get_collection_geometry(
     filenames: Union[Path, List[Path]],
-    flightname: Optional[str] = None,
-    is_flightjson=False,
+    collectionname: Optional[str] = None,
+    is_collectionjson=False,
     is_pdsjsons=False,
-) -> FlightGeometry:
-    if is_flightjson:
-        return deserialize_data(filenames, FlightGeometry)
+) -> CollectionGeometry:
+    if is_collectionjson:
+        return deserialize_data(filenames, CollectionGeometry)
     else:
-        if flightname is None:
-            raise ValueError("please provide a flightname for the flight geometry")
+        if collectionname is None:
+            raise ValueError("please provide a name for the collection")
         pfgs = get_pdsfile_geometries(filenames, is_jsons=is_pdsjsons)
-        return scan_flight(flightname, pfgs)
+        return scan_collection(collectionname, pfgs)
 
 
 def main():
     """
     e.g.
-    python serde_flight.py -g dummy_flight_jsons dummy_flight_pds/*.pds --flightname dummyflight100
+    python serde_collection.py -g dummy_flight_jsons dummy_flight_pds/*.pds --flightname dummyflight100
     or
-    python serde_flight.py -g dummy_flight_jsons dummy_flight_pds/*.jsons --flightname dummyflight100 --is_jsons True
+    python serde_collection.py -g dummy_flight_jsons dummy_flight_pds/*.jsons --flightname dummyflight100 --is_jsons True
     """
     import argparse
 
@@ -224,8 +224,8 @@ def main():
     args = parser.parse_args()
 
     pfgs = get_pdsfile_geometries(args.filenames, is_jsons=args.is_jsons)
-    geom = scan_flight(args.flightname, pfgs)
-    write_flight_geometry(geom, args.geomsdir)
+    geom = scan_collection(args.flightname, pfgs)
+    write_collection_geometry(geom, args.geomsdir)
 
 
 if __name__ == "__main__":

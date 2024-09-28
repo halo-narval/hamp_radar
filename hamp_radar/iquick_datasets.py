@@ -6,9 +6,9 @@ import numpy as np
 
 from iquick import extract_raw_arrays
 from decoders import pds_decode
-from geometries import FlightGeometry, DatasetGeometry
+from geometries import CollectionGeometry, DatasetGeometry
 from postprocess import postprocess_iq
-from serde_flight import get_flight_geometry
+from serde_collection import get_collection_geometry
 
 
 def read_datasetblock(
@@ -52,28 +52,28 @@ def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
     return dataset
 
 
-def read_flight(flightgeom: FlightGeometry, postprocess=True) -> Iterable[xr.Dataset]:
+def read_collection(geom: CollectionGeometry, postprocess=True) -> Iterable[xr.Dataset]:
     """
-    Converts data from .pds files accorinding to the flightgeometry,
+    Converts data from .pds files accorinding to the CollectionGeometry,
     into several xarray datasets (one for each DSP configuration). Currently
     only functioning with geometry of pds files and decoders for IQ data of
     Ka radar currently operational on HALO (last checked: 13th Septermber 2024).
 
     Parameters:
-        flightgeometry (FlightGeometry): The flight geometry of the flight.
+        geom (CollectionGeometry): The geometry of the collection of datasets, e.g. for a flight.
         postprocess (bool): Whether to apply post-processing to the dataset. Default is True.
 
     Returns:
-       Iterable[xarray.Dataset]: iterable to the next IQ data dataset in the flight.
+       Iterable[xarray.Dataset]: iterable to the next IQ data dataset in the collection.
     """
-    for dsgeom in flightgeom.datasets:
-        yield read_dataset(dsgeom, postprocess).assign_attrs(flightname=flightgeom.name)
+    for dsgeom in geom.datasets:
+        yield read_dataset(dsgeom, postprocess).assign_attrs(name=geom.name)
 
 
 def main():
     """
     e.g.
-    python flight_dataset.py ./bin/jsons/HALO-20240818a-test.json
+    python iquick_datasets.py ./bin/jsons/HALO-20240818a-test.json
     """
     import argparse
 
@@ -111,13 +111,13 @@ def main():
     else:
         filenames = args.filenames
 
-    geom = get_flight_geometry(
+    geom = get_collection_geometry(
         filenames,
-        flightname=args.flightname,
-        is_flightjson=args.is_flightjson,
+        collectionname=args.flightname,
+        is_collectionjson=args.is_flightjson,
         is_pdsjsons=args.is_pdsjsons,
     )
-    flight_datasets = read_flight(geom)
+    flight_datasets = read_collection(geom)
     for ds in flight_datasets:
         print(ds)
 
