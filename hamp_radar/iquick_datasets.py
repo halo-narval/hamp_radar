@@ -33,7 +33,13 @@ def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
 
     ds_ppar = read_datasetblock(dsgeom.ppar)
 
-    dataset = [read_datasetblock(d, ds_ppar).chunk("auto") for d in dsgeom.data]
+    chunks = {
+        "cocx": 2,
+        "range": 512,  # TODO(ALL): see HACK about range dimension = 512
+        "fft": 256,
+        "iq": 2,
+    }
+    dataset = [read_datasetblock(d, ds_ppar).chunk(chunks) for d in dsgeom.data]
     if dataset != []:
         dataset = xr.concat(dataset, dim="frame")
         dataset = dataset.merge(ds_ppar)
