@@ -29,11 +29,20 @@ def read_datasetblock(
 
 
 def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
+    import warnings
+
     ds_ppar = read_datasetblock(dsgeom.ppar)
 
     dataset = [read_datasetblock(d, ds_ppar).chunk("auto") for d in dsgeom.data]
-    dataset = xr.concat(dataset, dim="frame")
-    dataset = dataset.merge(ds_ppar)
+    if dataset != []:
+        dataset = xr.concat(dataset, dim="frame")
+        dataset = dataset.merge(ds_ppar)
+    else:
+        warnings.warn(
+            "Warning: no data blocks in dataset",
+            UserWarning,
+        )
+        dataset = ds_ppar
 
     dataset = dataset.assign_attrs(radar_tag=dsgeom.ppar.mainblock.tag)
 
