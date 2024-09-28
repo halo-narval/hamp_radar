@@ -8,6 +8,7 @@ from iquick import get_geometry
 
 
 def scan_pdsfile(filename: Path):
+    assert filename.suffix == ".pds", "is this a pds file?"
     data = np.memmap(filename, mode="r")
     mmbgs = list(get_geometry(data))
     return PdsFileGeometry(filename, mmbgs)
