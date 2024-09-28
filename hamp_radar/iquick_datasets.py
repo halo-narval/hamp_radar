@@ -108,6 +108,13 @@ def main():
         help="True = filenames is for serialized flight .json",
         type=bool,
     )
+    parser.add_argument(
+        "-w",
+        "--writedir",
+        default=None,
+        help="True = directory for writing flight datasets",
+        type=Path,
+    )
     args = parser.parse_args()
 
     if args.is_flightjson:
@@ -123,9 +130,17 @@ def main():
         is_collectionjson=args.is_flightjson,
         is_pdsjsons=args.is_pdsjsons,
     )
+
     flight_datasets = read_collection(geom)
-    for ds in flight_datasets:
-        print(ds)
+
+    if args.writedir:
+        for i, ds in enumerate(flight_datasets):
+            filename = args.writedir / f"{ds.name}_{i}.zarr"
+            print(f"writing {filename}")
+            ds.to_zarr(f"{filename}")
+    else:
+        for ds in flight_datasets:
+            print(ds)
 
 
 if __name__ == "__main__":
