@@ -9,6 +9,7 @@ from decoders import pds_decode
 from geometries import CollectionGeometry, DatasetGeometry
 from postprocess import postprocess_iq
 from serde_collection import get_collection_geometry
+from writezarr import write_iqdataset
 
 
 def read_datasetblock(
@@ -38,6 +39,7 @@ def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
         "range": 512,  # TODO(ALL): see HACK about range dimension = 512
         "fft": 256,
         "iq": 2,
+        "frame": 128,  # TODO(ALL): HACK makes iq dask array chunks circa. 100MB
     }
     dataset = [read_datasetblock(d, ds_ppar).chunk(chunks) for d in dsgeom.data]
     if dataset != []:
@@ -137,7 +139,7 @@ def main():
         for i, ds in enumerate(flight_datasets):
             filename = args.writedir / f"{ds.name}_{i}.zarr"
             print(f"writing {filename}")
-            ds.to_zarr(f"{filename}")
+            write_iqdataset(ds, filename)
     else:
         for ds in flight_datasets:
             print(ds)
