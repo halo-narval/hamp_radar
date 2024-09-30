@@ -1,5 +1,6 @@
 import xarray as xr
 from pathlib import Path
+from typing import Optional
 
 
 def ideal_zarrchunks(ds: xr.Dataset):
@@ -24,7 +25,7 @@ def ideal_zarrchunks(ds: xr.Dataset):
     }
 
 
-def zarr_encoding(ds: xr.Dataset):
+def zarr_chunks_encoding(ds: xr.Dataset):
     ideal_chunks = ideal_zarrchunks(ds)
     encoding = {
         x: {"chunks": ideal_chunks[ds[x].dims]}
@@ -32,6 +33,25 @@ def zarr_encoding(ds: xr.Dataset):
         if ds[x].chunks
     }
     return encoding
+
+
+def merge_encodings(e1: dict, e2: dict):
+    e3 = {**e1}
+    for x in set(e1.keys()) & set(e2.keys()):
+        if set(e2[x]) & set(e3[x]) == set():
+            e3[x].update(e2[x])
+        else:
+            raise KeyError(f"encodings have conflicting keys for {x}")
+    for x in set(e2.keys()) - set(e1.keys()):
+        e3[x] = e2[x]
+    return e3
+
+
+def zarr_encoding(ds: xr.Dataset, encoding: Optional[dict] = None):
+    if encoding is None:
+        return zarr_chunks_encoding(ds)
+    else:
+        return merge_encodings(encoding, zarr_chunks_encoding(ds))
 
 
 def prepare_daskarrays_for_zarrchunks(ds: xr.Dataset, encoding: dict):
