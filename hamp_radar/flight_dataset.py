@@ -5,15 +5,10 @@ import xarray as xr
 import numpy as np
 
 from iquick import extract_raw_arrays
-from decoders import decode_time, pds_decode
+from decoders import pds_decode
 from geometries import FlightGeometry, DatasetGeometry
-
+from postprocess import postprocess_iq
 from serde_flight import get_flight_geometry
-
-
-def postprocess_iq(ds):
-    # TODO(ALL): move to new file
-    return ds.pipe(decode_time)
 
 
 def read_datasetblock(
@@ -34,11 +29,20 @@ def read_datasetblock(
 
 
 def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
+    import warnings
+
     ds_ppar = read_datasetblock(dsgeom.ppar)
 
     dataset = [read_datasetblock(d, ds_ppar).chunk("auto") for d in dsgeom.data]
-    dataset = xr.concat(dataset, dim="frame")
-    dataset = dataset.merge(ds_ppar)
+    if dataset != []:
+        dataset = xr.concat(dataset, dim="frame")
+        dataset = dataset.merge(ds_ppar)
+    else:
+        warnings.warn(
+            "Warning: no data blocks in dataset",
+            UserWarning,
+        )
+        dataset = ds_ppar
 
     dataset = dataset.assign_attrs(radar_tag=dsgeom.ppar.mainblock.tag)
 
