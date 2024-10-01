@@ -1,4 +1,4 @@
-from iquick import read_pds
+from iquick_datasets import get_collection_geometry, read_collection
 
 
 def untangle_iqf(
@@ -20,21 +20,29 @@ def untangle_iqf(
 
     c_air = 299792458.0 / 1.0003  # speed of light in air
 
-    first = read_pds(files[0])
+    first = next(
+        read_collection(get_collection_geometry([files[0]], collectionname="firstpds"))
+    )
 
     tbeg = first.time[0]
     fbeg = first.frm[0]
     nfft = first.sizes["fft"]
     ngate = first.sizes["range"]
 
-    last = read_pds(files[-1])
+    last = list(
+        read_collection(get_collection_geometry([files[-1]], collectionname="lastpds"))
+    )[-1]
     tau_frame = (last.time[-1] - tbeg) / (last.frm[-1] - fbeg + 1)
 
     tau_pulse = tau_frame / nfft
     dtfft = tau_pulse * xr.DataArray(np.arange(nfft), dims=("fft",))
 
-    for file in files:
-        radar = read_pds(file)
+    for f, file in enumerate(files):
+        radar = next(
+            read_collection(
+                get_collection_geometry([file], collectionname=f"untanglepds_{f}")
+            )
+        )
         if radar.sizes["fft"] != nfft:
             raise ValueError("fft dimension cannot change among files")
         if radar.sizes["range"] != ngate:
@@ -82,12 +90,12 @@ def untangle_iqf(
             (
                 xr.Dataset(
                     {
-                        "co": radar["FFTD"]
+                        "co": radar["iq"]
                         .isel(cocx=0)
                         .assign_attrs(
                             {"long_name": "iq data from co-polarazied receiver"}
                         ),
-                        "cx": radar["FFTD"]
+                        "cx": radar["iq"]
                         .isel(cocx=1)
                         .assign_attrs(
                             {"long_name": "iq data from cross-polarazied receiver"}
