@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 import xarray as xr
 import numpy as np
 
@@ -9,52 +9,90 @@ from decoders import pds_decode
 from geometries import CollectionGeometry, DatasetGeometry
 from postprocess import postprocess_iq
 from serde_collection import get_collection_geometry
-from writezarr import write_iqdataset
+from writezarr import write_iqdataset, ideal_daskchunks
 
 
 def read_datasetblock(
     datablock: DatasetGeometry,
     ppar: Optional[xr.Dataset] = None,
+    use_autochunks: bool = False,
 ):
+    def decode_arrays(raw_arrays, radar_tag, ppar):
+        for _, tag, array in raw_arrays:
+            for k, v in pds_decode(tag, array, radar_tag, ppar).items():
+                yield k, v
+
+    def daskchunk_array(v):
+        dims, data = v[:2]
+        try:
+            attrs = v[2]
+        except IndexError:
+            attrs = None
+        return xr.DataArray(data=data, dims=dims, attrs=attrs).chunk(
+            ideal_daskchunks[dims]
+        )
+
     data = np.memmap(datablock.filename, mode="r")
     raw_arrays = extract_raw_arrays(data, datablock.mainblock)
     radar_tag = datablock.mainblock.tag
-    ds = xr.Dataset(
-        {
-            k: v
-            for _, tag, array in raw_arrays
-            for k, v in pds_decode(tag, array, radar_tag, ppar).items()
-        }
-    )
+    if use_autochunks:
+        return xr.Dataset(
+            {k: v for k, v in decode_arrays(raw_arrays, radar_tag, ppar)}
+        ).chunk("auto")
+    else:
+        return xr.Dataset(
+            {
+                k: daskchunk_array(v)
+                for k, v in decode_arrays(raw_arrays, radar_tag, ppar)
+            }
+        )
+
+
+def read_concat_datasetblocks(
+    datablocks: List[DatasetGeometry],
+    ds_ppar: Optional[xr.Dataset] = None,
+    use_autochunks: bool = False,
+):
+    """reads dataset blocks then concatenates them along frame dimension
+    to create a single dataset. If not using auto chunking, frame dimension
+    of each variable may be rechunked."""
+    dataset = [
+        read_datasetblock(d, ds_ppar, use_autochunks=use_autochunks) for d in datablocks
+    ]
+
+    if dataset == []:
+        return None
+
+    ds = xr.concat(dataset, dim="frame")
+
+    if not use_autochunks:
+        for x in list(ds.coords) + list(ds.data_vars):
+            if "frame" in ds[x].dims:
+                ds[x] = ds[x].chunk(frame=ideal_daskchunks[ds[x].dims]["frame"])
     return ds
 
 
-def read_dataset(dsgeom: DatasetGeometry, postprocess: bool):
+def read_dataset(
+    dsgeom: DatasetGeometry, postprocess: bool, use_autochunks: bool = False
+):
     import warnings
 
     ds_ppar = read_datasetblock(dsgeom.ppar)
+    ds_data = read_concat_datasetblocks(
+        dsgeom.data, ds_ppar, use_autochunks=use_autochunks
+    )
 
-    chunks = {
-        "cocx": 2,
-        "range": 512,  # TODO(ALL): see HACK about range dimension = 512
-        "fft": 256,
-        "iq": 2,
-        "frame": 128,  # TODO(ALL): HACK makes iq dask array chunks circa. 100MB
-    }
-    dataset = [read_datasetblock(d, ds_ppar).chunk(chunks) for d in dsgeom.data]
-    if dataset != []:
-        dataset = xr.concat(dataset, dim="frame")
-        dataset = dataset.merge(ds_ppar)
-    else:
+    if ds_data is None:
         warnings.warn(
             "Warning: no data blocks in dataset",
             UserWarning,
         )
         dataset = ds_ppar
+    else:
+        dataset = ds_data.merge(ds_ppar)
 
     dataset = dataset.assign_attrs(radar_tag=dsgeom.ppar.mainblock.tag)
 
-    # TODO(ALL): rechunk dataset for better data loading
     if postprocess:
         dataset = dataset.pipe(postprocess_iq)
     return dataset
