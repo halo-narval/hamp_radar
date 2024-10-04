@@ -98,7 +98,9 @@ def read_dataset(
     return dataset
 
 
-def read_collection(geom: CollectionGeometry, postprocess=True) -> Iterable[xr.Dataset]:
+def read_collection(
+    geom: CollectionGeometry, postprocess=True, use_autochunks: bool = False
+) -> Iterable[xr.Dataset]:
     """
     Converts data from .pds files accorinding to the CollectionGeometry,
     into several xarray datasets (one for each DSP configuration). Currently
@@ -113,7 +115,9 @@ def read_collection(geom: CollectionGeometry, postprocess=True) -> Iterable[xr.D
        Iterable[xarray.Dataset]: iterable to the next IQ data dataset in the collection.
     """
     for dsgeom in geom.datasets:
-        yield read_dataset(dsgeom, postprocess).assign_attrs(name=geom.name)
+        yield read_dataset(
+            dsgeom, postprocess, use_autochunks=use_autochunks
+        ).assign_attrs(name=geom.name)
 
 
 def main():
@@ -171,15 +175,13 @@ def main():
         is_pdsjsons=args.is_pdsjsons,
     )
 
-    flight_datasets = read_collection(geom)
-
     if args.writedir:
-        for i, ds in enumerate(flight_datasets):
+        for i, ds in enumerate(read_collection(geom)):
             filename = args.writedir / f"{ds.name}_{i}.zarr"
             print(f"writing {filename}")
             write_iqdataset(ds, filename)
     else:
-        for ds in flight_datasets:
+        for ds in read_collection(geom, use_autochunks=True):
             print(ds)
 
 
