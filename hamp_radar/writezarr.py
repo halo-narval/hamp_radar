@@ -17,7 +17,7 @@ ideal_daskchunks = {
         "cocx": 2,
     },
     ("frame", "range", "cocx"): {
-        "frame": 512000,
+        "frame": 491520,
         "range": 64,
         "cocx": 2,
     },
